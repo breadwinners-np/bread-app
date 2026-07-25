@@ -9,6 +9,8 @@ Read this file first, then [CLAUDE.md](CLAUDE.md) for the rules and
 tells you where things stand and what happens next; the other two tell you how
 to work and why things are the way they are.
 
+**If you have not cloned the repository yet, start with section 8 at the end.**
+
 If you are Claude and you were handed this file: **no application code exists
 yet.** Do not assume any scaffolding, schema, or dependency is in place. Verify
 before you build, and see "What not to do next" at the end.
@@ -238,3 +240,93 @@ Written for whichever Claude session picks this up:
 - **Do not treat this file as current forever.** It is a snapshot from
   2026-07-25. DECISIONS.md is the living record; if the two disagree, DECISIONS.md
   wins.
+
+---
+
+## 8. Cloning and first-time setup
+
+The one thing that catches people out: **`main` is nearly empty.** Every document
+lives on the `chore/project-setup-docs` branch until that branch is merged. If
+you clone and see only a README, that is why — see step 4.
+
+### 1. Accept the organization invite
+
+Check your email, or go to https://github.com/orgs/breadwinners-np/invitation.
+You cannot clone a private repository until you are a member.
+
+### 2. Install prerequisites
+
+macOS:
+
+```bash
+brew install git gh
+```
+
+On Windows use [git-scm.com](https://git-scm.com) and
+[cli.github.com](https://cli.github.com); on Linux use your package manager.
+
+### 3. Authenticate with GitHub
+
+```bash
+gh auth login
+```
+
+Choose **GitHub.com** → **HTTPS** → **Login with a web browser**, then paste the
+one-time code. This is the least painful route for a private repository — it
+stores credentials so plain `git` commands work afterwards. SSH keys or a
+personal access token work equally well if you already have them.
+
+### 4. Clone and switch to the branch
+
+```bash
+cd ~/Desktop
+git clone https://github.com/breadwinners-np/bread-app.git
+cd bread-app
+git checkout chore/project-setup-docs
+```
+
+The checkout matters. `main` holds only `.gitignore` and `README.md`.
+
+### 5. Verify
+
+```bash
+ls -la
+git status -sb
+```
+
+You should see `CLAUDE.md`, `DECISIONS.md`, `HANDOFF.md`, `README.md`, and
+`.gitignore`, and the branch line should read
+`## chore/project-setup-docs...origin/chore/project-setup-docs`. If `HANDOFF.md`
+is missing, the checkout in step 4 did not take.
+
+### 6. Set your commit identity
+
+```bash
+git config user.name "Your Name"
+git config user.email "your@email.com"
+```
+
+### 7. Read the documents
+
+`HANDOFF.md` first, then `CLAUDE.md` for the working rules, then `DECISIONS.md`
+for the reasoning.
+
+**Do not run `npm install`** — there is no `package.json` yet. Nothing is
+scaffolded.
+
+### 8. If you are using Claude Code
+
+```bash
+npm install -g @anthropic-ai/claude-code
+cd ~/Desktop/bread-app
+claude
+```
+
+Then tell it: *"Read HANDOFF.md and CLAUDE.md before doing anything."* Claude
+Code picks up `CLAUDE.md` automatically but not this handoff.
+
+### 9. Confirm your access level
+
+Check https://github.com/orgs/breadwinners-np/people and confirm you are listed
+as **Owner**, not Member. Member grants clone and push but not settings or
+access management, which is not the parity this setup intends.
