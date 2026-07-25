@@ -1,0 +1,23 @@
+{
+  "name": "bread-app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Operations system for a fresh bread company in Accra, Ghana",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @bread/admin",
+    "build": "npm run build -w @bread/admin",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "overrides": {
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

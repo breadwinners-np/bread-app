@@ -1,8 +1,8 @@
 # Handoff — full project context
 
 **For:** the second teammate and their Claude Code session
-**Written:** 2026-07-25
-**Status of the project:** planning complete, nothing built yet
+**Written:** 2026-07-25 · **Last updated:** 2026-07-25
+**Status of the project:** admin prototype running on mock data; no database yet
 
 Read this file first, then [CLAUDE.md](CLAUDE.md) for the rules and
 [DECISIONS.md](DECISIONS.md) for the reasoning behind each choice. This file
@@ -11,9 +11,10 @@ to work and why things are the way they are.
 
 **If you have not cloned the repository yet, start with section 8 at the end.**
 
-If you are Claude and you were handed this file: **no application code exists
-yet.** Do not assume any scaffolding, schema, or dependency is in place. Verify
-before you build, and see "What not to do next" at the end.
+If you are Claude and you were handed this file: an admin **prototype** exists,
+running entirely on in-memory mock data. There is **no database, no schema, and
+no authentication**. Verify what is actually present before you build, and see
+"What not to do next" at the end.
 
 ---
 
@@ -72,26 +73,42 @@ where the connection drops.
 
 Be precise about this, because it is easy to assume more exists than does.
 
-**What exists:** four documentation files. That is all.
+**What exists:** the documentation, plus a working admin prototype.
 
 ```
-.gitignore      tailored for Next.js + Expo + Supabase, with a secrets block
-README.md       project overview and getting started
-CLAUDE.md       stack, commands, architecture rules, and a "do not" list
-DECISIONS.md    numbered decision log + open business questions
-HANDOFF.md      this file
+apps/admin/            Next.js 16 admin app — runs, builds, typechecks clean
+  app/                 screens (Today, Deliveries, Orders, Customers, + stubs)
+  components/          sidebar and shared UI
+  services/            data layer — MOCK, in-memory (decision 0008)
+packages/shared/       @bread/shared — types, zod schemas, money/date helpers,
+                       pure order and balance logic
+CLAUDE.md              architecture rules and a "do not" list
+DECISIONS.md           numbered decision log + open business questions
+HANDOFF.md             this file
+TEAMMATE-SETUP.md      onboarding for the second teammate
 ```
+
+Run it with `npm install && npm run dev` from the repo root, then open
+http://localhost:3000.
+
+**What works:** the daily delivery round (mark delivered in full, part
+delivered with a quantity, or could not deliver — the dashboard updates),
+customer list with balances, customer detail with order and payment history,
+order list, and forms to add a customer and an order. Payments, Costs, and
+Reports are deliberate placeholders that name the open questions blocking them.
 
 **What does not exist yet:**
 
-- no `package.json`, no workspaces, no `node_modules`, no dependencies installed
-- no `apps/admin`, no `apps/mobile`, no `packages/shared`
-- no `supabase/` directory, no migrations, no RLS policies, no Supabase project
-- no schema design, no tables, no types
-- no CI, no deployment, no Vercel or EAS setup
+- **no database.** All data is in `apps/admin/services/store.ts`, in memory, and
+  resets when the dev server restarts. No Supabase project, no migrations, no
+  RLS policies, no schema.
+- **no authentication.** Every screen and server action is open (decision 0009).
+- no `apps/mobile`, no offline sync, no PowerSync.
+- no monthly wholesale commitments — blocked on ORD-3.
+- no CI, no deployment, no Vercel or EAS setup.
 
-The commands listed in CLAUDE.md and README.md describe the **intended** setup.
-Most of them will not run yet. That is expected.
+The Supabase commands in CLAUDE.md and README.md describe the **intended** setup
+and will not run yet.
 
 ### Repository and access
 
@@ -123,11 +140,13 @@ Full reasoning for each is in [DECISIONS.md](DECISIONS.md). Summarized:
 | 0005 | One buyer app with role-branched screens, not two apps | Proposed |
 | 0006 | Build admin before the buyer app | Proposed |
 | 0007 | Decision-log entries go through pull requests, never straight to `main` | **Accepted** |
+| 0008 | The prototype runs on in-memory mock data behind a service layer | **Accepted** |
+| 0009 | The admin prototype has no authentication | **Accepted** |
 
-**Everything except 0007 is still Proposed.** They are recommendations, not
-settled team choices. Merging the open pull request is what converts them into
-agreements. If the second teammate disagrees with any of them, now is the
-cheapest possible moment to say so — no code rests on them yet.
+**0001–0006 are still Proposed.** They are recommendations, not settled team
+choices, and the second teammate has not reviewed them. The prototype was built
+on top of them, so disagreeing now costs a little rework — but far less than
+disagreeing after the database exists. Say so if you disagree.
 
 ### Key technical constraints these create
 
@@ -174,19 +193,18 @@ midnight local.
 
 ## 5. What happens next
 
-Planned sequence:
+Done: the docs are merged to `main`, and the admin prototype is built.
 
-1. **Merge the open pull request** — converts decisions 0001–0006 from proposals
-   into team agreements.
-2. **Get the four business-rule answers** from the owner.
-3. **Design the schema and RLS policies.** This is the next real build step and
-   the most expensive thing to get wrong, which is why it waits on step 2.
-4. **Scaffold the monorepo** — workspaces, `packages/shared`, `apps/admin`.
-5. **Admin app**: customers, products, orders → daily distribution → payments
-   and cheque tracking → costs and reports.
+1. **Show the prototype to the bakery owner** and get the four business-rule
+   answers. The prototype exists partly to provoke those answers — it is far
+   easier to react to a screen than to a question in the abstract.
+2. **Design the schema and RLS policies.** Still the most expensive thing to get
+   wrong, and still blocked on step 1.
+3. **Replace the mock services with Supabase.** The service layer in
+   `apps/admin/services/` is the seam; screens should not change.
+4. **Add authentication** before any real customer data is entered (0009).
+5. **Finish the admin app**: payments and cheque tracking → costs → reports.
 6. **Buyer app**, wholesale flows first, then retail.
-
-Steps 1 and 2 can happen in parallel.
 
 ### Splitting the work
 
@@ -228,12 +246,14 @@ Full rules are in [CLAUDE.md](CLAUDE.md). The ones that matter most:
 
 Written for whichever Claude session picks this up:
 
-- **Do not scaffold the apps yet.** Decisions 0001–0006 are unapproved and the
-  schema is unanswered. Scaffolding now means rewriting later.
 - **Do not design the schema before the four questions in section 4 are
   answered.** Ask; do not invent an answer to unblock yourself.
-- **Do not assume the commands in CLAUDE.md work.** Most describe the intended
-  setup, not the current one.
+- **Do not put real customer data into the prototype.** There is no
+  authentication and no row-level security. It holds fabricated data only.
+- **Do not build on `services/store.ts`.** It is scaffolding to be deleted, not
+  a foundation. Screens must go through the service modules, never the store.
+- **Do not assume the Supabase commands in CLAUDE.md work.** They describe the
+  intended setup, not the current one.
 - **Do not push to `main`,** even though nothing mechanically stops you.
 - **Do not duplicate work.** Two teammates with two Claude sessions on one repo
   can easily build the same thing twice. Confirm who owns what first.

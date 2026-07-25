@@ -84,24 +84,43 @@ git checkout chore/project-setup-docs
 New to the project? Read [HANDOFF.md](HANDOFF.md) first — it is the full context
 dump. Then [CLAUDE.md](CLAUDE.md) for the working rules.
 
-## Running the apps
+## Running the admin app
 
-**Nothing is scaffolded yet.** There is no `package.json`, no `apps/`, and no
-Supabase project — the repository currently holds documentation only. The
-commands below describe the intended setup and will not work until the apps are
-built. See [HANDOFF.md](HANDOFF.md) for exactly what exists today.
-
-Once scaffolded you will need Node.js 22+, npm 10+, Docker (for local Supabase),
-and the [Supabase CLI](https://supabase.com/docs/guides/cli). For the mobile app
-you will also need Android Studio or a physical Android device.
+You need Node.js 22+ and npm 10+. Nothing else — the prototype has no database.
 
 ```bash
 npm install
+npm run dev       # http://localhost:3000
+```
+
+**This is a prototype running on in-memory mock data.** There is no database and
+no login. Data resets when the dev server restarts, and everything in it is
+fabricated. Do not enter real customer information. See
+[DECISIONS.md](DECISIONS.md) entries 0008 and 0009.
+
+What works today: the daily delivery round, customers with balances, order
+history, and forms to add a customer or an order. Payments, Costs, and Reports
+are placeholders that name the business questions blocking them.
+
+Other useful commands:
+
+```bash
+npm run build       # production build
+npm run typecheck   # every workspace
+npm run lint
+```
+
+## Not built yet
+
+The mobile app and the database do not exist. Once the schema questions in
+[DECISIONS.md](DECISIONS.md) are answered, this is roughly what setup will
+become — Docker and the [Supabase CLI](https://supabase.com/docs/guides/cli) for
+the database, Android Studio or a device for the mobile app:
+
+```bash
 cp .env.example .env          # then fill in your own values — see below
 supabase start                # local Postgres, Studio, and auth
 supabase db reset             # apply migrations and seed data
-
-npm run dev -w apps/admin     # http://localhost:3000
 npm run dev -w apps/mobile    # Expo dev server
 ```
 

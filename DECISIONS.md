@@ -51,6 +51,43 @@ midnight local.
 
 ---
 
+## 0009 — The admin prototype has no authentication
+
+**Date:** 2026-07-25 · **Status:** Accepted
+
+The skeleton has no login and no session. Every screen and every server action is
+open to anyone who can reach the server.
+
+This is acceptable only because the app holds nothing but fabricated sample data
+and runs on one laptop. It stops being acceptable the moment a real customer name
+or a real cheque number is entered.
+
+**Before this touches real data:** admin authentication, and an authorization
+check inside every server action. Server actions are reachable by direct POST,
+not only through the UI, so guarding the screens alone would not be enough.
+
+## 0008 — The prototype runs on in-memory mock data behind a service layer
+
+**Date:** 2026-07-25 · **Status:** Accepted
+
+Screens read and write through service modules in `apps/admin/services/`
+(`listCustomers()`, `createOrder()`, `recordDelivery()`, …). Those services are
+backed by an in-memory store seeded with fabricated bakery data. Nothing touches
+Supabase yet.
+
+The schema is blocked on four business questions (ORD-3, PAY-3, PAY-6, PRD-4),
+and those questions change table shapes, not just column values. Building the UI
+against a schema we would then have to rewrite is wasted work; building it
+against a service layer is not, because the seam survives.
+
+When the questions are answered, the service function bodies get reimplemented
+against Supabase and the screens do not change. `apps/admin/services/store.ts` is
+deleted at that point.
+
+**Tradeoff:** the prototype's data resets whenever the dev server restarts, and
+nothing exercises row-level security yet. Both are fine for something whose only
+job is to show the owner the shape of the app and provoke corrections.
+
 ## 0007 — Decision-log entries go through pull requests, never straight to `main`
 
 **Date:** 2026-07-25 · **Status:** Accepted
