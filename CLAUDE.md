@@ -185,8 +185,14 @@ rather than something to guess past.
 
 Add an entry whenever a decision would otherwise have to be guessed at or
 re-litigated later, and put it in the **same pull request as the change it
-describes** so the reasoning arrives with the code. Mark entries `Proposed`
-until a teammate agrees. Never rewrite an old entry — supersede it.
+describes** so the reasoning arrives with the code. When a decision has no code
+attached — the owner answers a business rule by phone, or we settle an approach
+before building it — open a **small docs-only pull request** for it rather than
+letting it wait on unrelated work. Either way it goes through review: nothing
+lands on `main` unseen.
+
+Mark entries `Proposed` until a teammate agrees. Never rewrite an old entry —
+supersede it.
 
 This is a two-person team. A decision that lives only in someone's terminal is
 not a shared decision.

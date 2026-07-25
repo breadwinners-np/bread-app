@@ -5,7 +5,8 @@ Why things are the way they are. Newest at the top.
 This file is the shared memory for everyone working on this repo — both teammates
 and Claude Code. If you make a call that a teammate would otherwise have to guess
 at or re-litigate later, add an entry. Update it **in the same pull request as
-the change it describes**, so the reasoning arrives with the code.
+the change it describes**, so the reasoning arrives with the code. A decision
+with no code attached gets its own small docs-only pull request — see 0007.
 
 Status values: **Proposed** (awaiting a teammate's agreement) · **Accepted** ·
 **Superseded by NNNN** · **Rejected**.
@@ -49,6 +50,30 @@ Africa/Accra is UTC+0 with no daylight saving, business day is midnight to
 midnight local.
 
 ---
+
+## 0007 — Decision-log entries go through pull requests, never straight to `main`
+
+**Date:** 2026-07-25 · **Status:** Accepted
+
+An entry rides along in the pull request containing the work it describes. A
+decision with no code attached — a business rule the owner answers by phone, an
+approach settled before it is built — gets its own small docs-only pull request
+instead of waiting on unrelated work. Nothing reaches `main` unreviewed.
+
+The point of this file is not a record of decisions, it is **agreement** on them.
+A log a teammate can read whenever is a log they read never; a pull request sits
+in their review queue until they act on it. The entries here are precisely the
+ones worth disagreeing about, and disagreement is cheap before code rests on
+them and expensive afterwards.
+
+**Tradeoff:** every decision waits on a review. If pull requests start sitting
+for days, this becomes a bottleneck and the alternative is docs-only commits
+straight to `main` plus a habit of telling each other what changed. Revisit if
+that happens rather than pre-emptively.
+
+**Note:** `main` is not mechanically protected. Branch protection on a private
+repository requires a paid GitHub plan, so for now this rule is convention, held
+by both teammates rather than enforced by the platform.
 
 ## 0006 — Build the admin app before the buyer app
 
