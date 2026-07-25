@@ -47,25 +47,60 @@ CLAUDE.md           architecture rules and conventions — read this first
 This is an npm workspaces monorepo. `packages/shared` holds anything both apps
 need and ships raw TypeScript, so there is no build step to run before using it.
 
-## Getting started
+## Cloning the repository
 
-You need Node.js 22+, npm 10+, Docker (for local Supabase), and the
-[Supabase CLI](https://supabase.com/docs/guides/cli). For the mobile app you also
-need Android Studio or a physical Android device.
+The repository is private and owned by the `breadwinners-np` organization, so
+accept your invite first — check your email or visit
+https://github.com/orgs/breadwinners-np/invitation.
+
+Install git and the GitHub CLI, then authenticate. On macOS:
 
 ```bash
-git clone <repo-url>
-cd bread-app
-npm install
+brew install git gh
+gh auth login     # GitHub.com → HTTPS → Login with a web browser
+```
 
+On Windows use [git-scm.com](https://git-scm.com) and
+[cli.github.com](https://cli.github.com); on Linux use your package manager. SSH
+keys or a personal access token work just as well if you already have them.
+
+Then clone:
+
+```bash
+git clone https://github.com/breadwinners-np/bread-app.git
+cd bread-app
+git config user.name "Your Name"
+git config user.email "your@email.com"
+```
+
+Confirm you have the documents — `ls` should show `CLAUDE.md`, `DECISIONS.md`,
+`HANDOFF.md`, and this README. If they are missing, they are still on an
+unmerged branch:
+
+```bash
+git checkout chore/project-setup-docs
+```
+
+New to the project? Read [HANDOFF.md](HANDOFF.md) first — it is the full context
+dump. Then [CLAUDE.md](CLAUDE.md) for the working rules.
+
+## Running the apps
+
+**Nothing is scaffolded yet.** There is no `package.json`, no `apps/`, and no
+Supabase project — the repository currently holds documentation only. The
+commands below describe the intended setup and will not work until the apps are
+built. See [HANDOFF.md](HANDOFF.md) for exactly what exists today.
+
+Once scaffolded you will need Node.js 22+, npm 10+, Docker (for local Supabase),
+and the [Supabase CLI](https://supabase.com/docs/guides/cli). For the mobile app
+you will also need Android Studio or a physical Android device.
+
+```bash
+npm install
 cp .env.example .env          # then fill in your own values — see below
 supabase start                # local Postgres, Studio, and auth
 supabase db reset             # apply migrations and seed data
-```
 
-Run an app:
-
-```bash
 npm run dev -w apps/admin     # http://localhost:3000
 npm run dev -w apps/mobile    # Expo dev server
 ```
