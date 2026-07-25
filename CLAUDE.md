@@ -70,19 +70,34 @@ build step for `shared`, and there should not be one.
 
 Run from the repository root unless stated otherwise.
 
-```bash
-npm install                          # install all workspaces
-npm run dev -w apps/admin            # Next.js dev server
-npm run dev -w apps/mobile           # Expo dev server
-npm run typecheck -w packages/shared # typecheck the shared package
-npm run lint                         # lint everything
+Note: these blocks carry no trailing `#` comments on purpose. zsh does not strip
+`#` comments in interactive shells by default, so a pasted comment is passed to
+the command as an argument and the command fails.
 
-supabase start                       # local Postgres + Studio (Docker)
-supabase db reset                    # rebuild local DB from migrations + seed
-supabase migration new <name>        # create a timestamped migration
-supabase db push                     # apply migrations to the linked project
+```bash
+npm install
+npm run dev
+npm run build
+npm run typecheck
+npm run lint
+```
+
+`npm run dev` starts the admin app on http://localhost:3000. `typecheck` and
+`lint` run across every workspace. To target one workspace, add `-w @bread/admin`
+or `-w @bread/shared`.
+
+Database commands, once Supabase exists — none of these work yet:
+
+```bash
+supabase start
+supabase db reset
+supabase migration new <name>
+supabase db push
 supabase gen types typescript --local > packages/shared/src/database.types.ts
 ```
+
+`start` brings up local Postgres and Studio in Docker, `db reset` rebuilds from
+migrations and seed, `db push` applies migrations to the linked project.
 
 Never hand-edit `database.types.ts`. Regenerate it after every schema change.
 

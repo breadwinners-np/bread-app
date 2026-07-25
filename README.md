@@ -57,8 +57,11 @@ Install git and the GitHub CLI, then authenticate. On macOS:
 
 ```bash
 brew install git gh
-gh auth login     # GitHub.com → HTTPS → Login with a web browser
+gh auth login
 ```
+
+At the `gh auth login` prompts choose **GitHub.com**, then **HTTPS**, then
+**Login with a web browser**.
 
 On Windows use [git-scm.com](https://git-scm.com) and
 [cli.github.com](https://cli.github.com); on Linux use your package manager. SSH
@@ -90,8 +93,14 @@ You need Node.js 22+ and npm 10+. Nothing else — the prototype has no database
 
 ```bash
 npm install
-npm run dev       # http://localhost:3000
+npm run dev
 ```
+
+Then open **http://localhost:3000**.
+
+Paste those two lines exactly, with nothing after them. zsh does not treat `#` as
+a comment in interactive shells by default, so a trailing comment becomes an
+argument and `next dev` fails with "Invalid project directory".
 
 **This is a prototype running on in-memory mock data.** There is no database and
 no login. Data resets when the dev server restarts, and everything in it is
@@ -102,11 +111,12 @@ What works today: the daily delivery round, customers with balances, order
 history, and forms to add a customer or an order. Payments, Costs, and Reports
 are placeholders that name the business questions blocking them.
 
-Other useful commands:
+Other useful commands — `build` makes a production build, `typecheck` and `lint`
+run across every workspace:
 
 ```bash
-npm run build       # production build
-npm run typecheck   # every workspace
+npm run build
+npm run typecheck
 npm run lint
 ```
 
@@ -118,11 +128,15 @@ become — Docker and the [Supabase CLI](https://supabase.com/docs/guides/cli) f
 the database, Android Studio or a device for the mobile app:
 
 ```bash
-cp .env.example .env          # then fill in your own values — see below
-supabase start                # local Postgres, Studio, and auth
-supabase db reset             # apply migrations and seed data
-npm run dev -w apps/mobile    # Expo dev server
+cp .env.example .env
+supabase start
+supabase db reset
+npm run dev -w apps/mobile
 ```
+
+Copy `.env.example` and fill in your own values, `supabase start` brings up local
+Postgres and Studio, `db reset` applies migrations and seed data, and the last
+line starts the Expo dev server.
 
 ## Environment variables
 
@@ -143,8 +157,8 @@ migration that has already been merged — correct it with a new one.
 
 ```bash
 supabase migration new add_monthly_commitments
-supabase db reset             # rebuild locally from scratch
-supabase db push              # apply to the linked remote project
+supabase db reset
+supabase db push
 supabase gen types typescript --local > packages/shared/src/database.types.ts
 ```
 
