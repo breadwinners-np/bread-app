@@ -67,6 +67,15 @@ export interface Order {
   source: OrderSource;
   lines: OrderLine[];
   createdAt: string;
+  /**
+   * Set when a delivery was moved to a later day, holding the date it was
+   * originally due. Moving the order keeps one order equal to one obligation,
+   * so a rescheduled drop is never billed twice.
+   *
+   * OPEN: whether rescheduling should instead preserve each attempt as its own
+   * record is undecided — see the open questions in DECISIONS.md.
+   */
+  rescheduledFrom?: string | null;
 }
 
 export interface Delivery {

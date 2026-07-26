@@ -73,6 +73,31 @@ export function deliveryProgress(deliveries: readonly Delivery[]): {
 }
 
 /**
+ * Why a delivery still needs the owner's attention.
+ *
+ * - `failed` — someone tried and could not deliver it.
+ * - `overdue` — the day passed and nothing was ever recorded against it.
+ *
+ * Partial deliveries are deliberately NOT counted here. A short drop leaves
+ * bread undelivered, but whether the remainder is owed, redelivered, or written
+ * off is an open question (DST-7). Counting them would mean choosing an answer.
+ */
+export type OutstandingReason = "failed" | "overdue";
+
+export function outstandingReason(
+  order: Order,
+  delivery: Delivery,
+  today: string,
+): OutstandingReason | null {
+  if (order.status === "cancelled") return null;
+  if (delivery.status === "not_delivered") return "failed";
+  if (delivery.status === "pending" && order.deliveryDate < today) {
+    return "overdue";
+  }
+  return null;
+}
+
+/**
  * A customer's outstanding balance, in pesewas: what they have been billed
  * less what they have paid. Positive means the customer owes money.
  *

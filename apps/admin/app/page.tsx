@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import {
   DELIVERY_STATUS_LABELS,
   deliveryProgress,
@@ -17,7 +19,10 @@ import {
   StatTile,
 } from "@/components/ui";
 import { totalCostsForDate } from "@/services/costs";
-import { listDeliveriesForDate } from "@/services/deliveries";
+import {
+  listDeliveriesForDate,
+  listOutstandingDeliveries,
+} from "@/services/deliveries";
 import { listOrdersForDate } from "@/services/orders";
 
 // Reads mutable data and "today", so it must never be prerendered at build time.
@@ -26,10 +31,11 @@ export const dynamic = "force-dynamic";
 export default async function TodayPage() {
   const today = todayIso();
 
-  const [orders, deliveries, costsToday] = await Promise.all([
+  const [orders, deliveries, costsToday, outstanding] = await Promise.all([
     listOrdersForDate(today),
     listDeliveriesForDate(today),
     totalCostsForDate(today),
+    listOutstandingDeliveries(),
   ]);
 
   const loavesToday = orders.reduce((total, entry) => total + entry.quantity, 0);
@@ -44,6 +50,25 @@ export default async function TodayPage() {
         subtitle={formatLongDate(today)}
         action={<ButtonLink href="/distribution">Start deliveries</ButtonLink>}
       />
+
+      {outstanding.length > 0 && (
+        <Link
+          href="/distribution?view=outstanding"
+          className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-l-4 border-l-red-500 bg-red-50 px-6 py-5 hover:bg-red-100"
+        >
+          <div>
+            <p className="text-lg font-bold text-red-900">
+              {outstanding.length}{" "}
+              {outstanding.length === 1 ? "delivery needs" : "deliveries need"}{" "}
+              attention
+            </p>
+            <p className="text-red-800">
+              Could not be delivered, or the day passed without being recorded.
+            </p>
+          </div>
+          <span className="font-semibold text-red-900">Sort them out →</span>
+        </Link>
+      )}
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile

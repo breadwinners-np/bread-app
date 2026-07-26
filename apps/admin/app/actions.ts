@@ -7,10 +7,11 @@ import {
   customerInputSchema,
   orderInputSchema,
   recordDeliverySchema,
+  rescheduleDeliverySchema,
 } from "@bread/shared";
 
 import { createCustomer } from "@/services/customers";
-import { recordDelivery } from "@/services/deliveries";
+import { recordDelivery, rescheduleDelivery } from "@/services/deliveries";
 import { createOrder } from "@/services/orders";
 
 /**
@@ -99,6 +100,33 @@ export async function recordDeliveryAction(formData: FormData): Promise<void> {
   await recordDelivery(parsed.data);
 
   revalidatePath("/distribution");
+  revalidatePath("/");
+}
+
+export async function rescheduleDeliveryAction(
+  formData: FormData,
+): Promise<void> {
+  const parsed = rescheduleDeliverySchema.safeParse({
+    orderId: formData.get("orderId"),
+    newDate: formData.get("newDate"),
+  });
+
+  if (!parsed.success) {
+    console.error("Invalid reschedule submission", parsed.error.flatten());
+    return;
+  }
+
+  try {
+    await rescheduleDelivery(parsed.data);
+  } catch (error) {
+    // No error surface on this screen yet. Failing loudly in the log beats
+    // silently doing nothing and letting the owner think it worked.
+    console.error("Could not reschedule", error);
+    return;
+  }
+
+  revalidatePath("/distribution");
+  revalidatePath("/orders");
   revalidatePath("/");
 }
 

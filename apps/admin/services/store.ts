@@ -37,6 +37,7 @@ function seed(): Store {
   const today = todayIso();
   const yesterday = addDays(today, -1);
   const twoDaysAgo = addDays(today, -2);
+  const fourDaysAgo = addDays(today, -4);
   const tomorrow = addDays(today, 1);
 
   const products: Product[] = [
@@ -103,6 +104,10 @@ function seed(): Store {
     // Two days ago
     order("ord-11", "cus-1", twoDaysAgo, "delivered", "admin", "prd-1", 120, 1200),
     order("ord-12", "cus-4", twoDaysAgo, "delivered", "app", "prd-1", 5, 1200),
+    // Needs attention: nobody was there to receive it
+    order("ord-13", "cus-5", twoDaysAgo, "scheduled", "admin", "prd-3", 12, 1800),
+    // Needs attention: the day passed and nothing was ever recorded
+    order("ord-14", "cus-3", fourDaysAgo, "scheduled", "app", "prd-2", 8, 1000),
   ];
 
   const deliveries: Delivery[] = [
@@ -122,6 +127,9 @@ function seed(): Store {
     // Two days ago
     delivery("dlv-11", "ord-11", "delivered", 120, `${twoDaysAgo}T05:30:00Z`),
     delivery("dlv-12", "ord-12", "delivered", 5, `${twoDaysAgo}T07:05:00Z`),
+    delivery("dlv-13", "ord-13", "not_delivered", 0, `${twoDaysAgo}T06:20:00Z`, "Nobody at the house, phone off"),
+    // Never recorded at all — the round moved on and this was missed
+    delivery("dlv-14", "ord-14", "pending", 0, null),
   ];
 
   const payments: Payment[] = [

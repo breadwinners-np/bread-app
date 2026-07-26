@@ -72,6 +72,14 @@ export function relativeDayLabel(iso: string, today = todayIso()): string | null
   return null;
 }
 
+/** Whole days from one ISO date to another. Negative if `to` is earlier. */
+export function daysBetween(from: string, to: string): number {
+  const start = new Date(`${from}T00:00:00Z`).getTime();
+  const end = new Date(`${to}T00:00:00Z`).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return 0;
+  return Math.round((end - start) / 86_400_000);
+}
+
 /** The ISO `YYYY-MM` a date falls in. */
 export function monthOf(iso: string): string {
   return iso.slice(0, 7);

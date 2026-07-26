@@ -49,6 +49,13 @@ export const recordDeliverySchema = z.object({
 
 export type RecordDeliveryInput = z.infer<typeof recordDeliverySchema>;
 
+export const rescheduleDeliverySchema = z.object({
+  orderId: z.string().min(1),
+  newDate: isoDate,
+});
+
+export type RescheduleDeliveryInput = z.infer<typeof rescheduleDeliverySchema>;
+
 export const paymentInputSchema = z.object({
   customerId: z.string().min(1, "Choose a customer"),
   /** Entered by the user in cedis, converted to pesewas before storage. */

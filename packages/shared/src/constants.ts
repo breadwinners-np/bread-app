@@ -5,6 +5,7 @@
  * the words she would use, not accounting or database terminology.
  */
 
+import type { OutstandingReason } from "./orders";
 import type {
   CostCategory,
   CustomerType,
@@ -35,6 +36,11 @@ export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
   delivered: "Delivered",
   partial: "Part delivered",
   not_delivered: "Could not deliver",
+};
+
+export const OUTSTANDING_REASON_LABELS: Record<OutstandingReason, string> = {
+  failed: "Could not deliver",
+  overdue: "Never recorded",
 };
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {

@@ -36,6 +36,19 @@ not a detail to resolve later. Answers go into a dated entry below.
 - **Pricing.** One price list, or a negotiated price per wholesale customer?
 - **Unsold or refused bread.** Does a short or refused drop reduce what is owed?
   Do we track waste as a cost?
+- **Rescheduling (RSC-1).** When a failed delivery is moved to a later day, is it
+  the same obligation moved, or a fresh one? The prototype moves the order so
+  nothing is billed twice, but if the customer is charged for the failed attempt
+  *and* the replacement, that is wrong — and it depends on the answer above.
+- **Rescheduling history (RSC-2).** Should each attempt survive as its own
+  record? The prototype keeps only the latest state plus the original date, so a
+  drop that failed three times shows one move, not three. If the owner needs to
+  see a customer who is repeatedly unreachable, this has to change.
+- **Giving up (RSC-3).** Is there a point where a repeatedly-failed delivery is
+  written off rather than moved again, and does the bread count as waste then?
+- **Part deliveries (RSC-4).** If 45 of 60 loaves were taken, is the remaining 15
+  a delivery to redeliver, or gone? The prototype deliberately leaves part
+  deliveries out of "needs attention" rather than assume.
 - **Cost granularity.** Gas, ingredients, and transport as daily lump sums, or
   allocated per batch for profit-per-loaf? Does profit include wages?
 - **Phone OTP budget.** Supabase phone auth needs an SMS provider billed per
