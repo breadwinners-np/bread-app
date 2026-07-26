@@ -6,12 +6,14 @@ import { redirect } from "next/navigation";
 import {
   customerInputSchema,
   orderInputSchema,
+  purchaseInputSchema,
   recordDeliverySchema,
   rescheduleDeliverySchema,
 } from "@bread/shared";
 
 import { createCustomer } from "@/services/customers";
 import { recordDelivery, rescheduleDelivery } from "@/services/deliveries";
+import { createPurchase } from "@/services/inventory";
 import { createOrder } from "@/services/orders";
 
 /**
@@ -101,6 +103,31 @@ export async function recordDeliveryAction(formData: FormData): Promise<void> {
 
   revalidatePath("/distribution");
   revalidatePath("/");
+}
+
+export async function createPurchaseAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = purchaseInputSchema.safeParse({
+    itemId: formData.get("itemId"),
+    date: formData.get("date"),
+    quantity: formData.get("quantity"),
+    unit: formData.get("unit"),
+    unitPriceCedis: formData.get("unitPriceCedis"),
+    supplier: formData.get("supplier") || undefined,
+    note: formData.get("note") || undefined,
+  });
+
+  if (!parsed.success) {
+    return { fieldErrors: fieldErrorsFrom(parsed.error) };
+  }
+
+  await createPurchase(parsed.data);
+  revalidatePath("/inventory");
+  revalidatePath("/costs");
+  revalidatePath("/");
+  redirect("/inventory");
 }
 
 export async function rescheduleDeliveryAction(

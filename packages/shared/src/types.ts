@@ -106,6 +106,49 @@ export interface Cost {
   note?: string;
 }
 
+/** How a supply is measured when it is bought. */
+export type UnitOfMeasure =
+  | "piece"
+  | "kg"
+  | "g"
+  | "litre"
+  | "sack"
+  | "box"
+  | "crate";
+
+/** Something the bakery buys: flour, yeast, butter, sugar, salt, gas. */
+export interface SupplyItem {
+  id: string;
+  name: string;
+  /** The unit this is normally bought in, pre-selected on the form. */
+  defaultUnit: UnitOfMeasure;
+  /** Which cost category this rolls up into for reporting. */
+  category: CostCategory;
+  active: boolean;
+}
+
+/**
+ * A record of buying a supply on a given day, at a given price.
+ *
+ * This is purchase history, not stock on hand. Knowing what is left would mean
+ * tracking consumption — how much flour went into each bake — which nobody
+ * records today. See the open questions in DECISIONS.md.
+ */
+export interface Purchase {
+  id: string;
+  itemId: string;
+  /** ISO `YYYY-MM-DD` — the day it was bought. */
+  date: string;
+  /** May be fractional, e.g. 2.5 kg. */
+  quantity: number;
+  unit: UnitOfMeasure;
+  /** Price for one unit, in pesewas. */
+  unitPricePesewas: number;
+  supplier?: string;
+  note?: string;
+  recordedAt: string;
+}
+
 /**
  * A wholesale customer's agreed quantity for a month.
  *

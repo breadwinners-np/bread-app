@@ -16,6 +16,7 @@ const NAV: NavItem[] = [
   { href: "/distribution", label: "Deliveries", icon: <TruckIcon /> },
   { href: "/orders", label: "Orders", icon: <ClipboardIcon /> },
   { href: "/customers", label: "Customers", icon: <PeopleIcon /> },
+  { href: "/inventory", label: "Inventory", icon: <BoxIcon /> },
   { href: "/payments", label: "Payments", icon: <CashIcon />, comingSoon: true },
   { href: "/costs", label: "Costs", icon: <ReceiptIcon />, comingSoon: true },
   { href: "/reports", label: "Reports", icon: <ChartIcon />, comingSoon: true },
@@ -120,6 +121,15 @@ function PeopleIcon() {
     <svg {...iconProps()}>
       <circle cx="9" cy="8" r="3" />
       <path d="M3 20a6 6 0 0 1 12 0M16 11a3 3 0 1 0 0-6M18 20a5 5 0 0 0-2-4" />
+    </svg>
+  );
+}
+
+function BoxIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
+      <path d="M3 7l9 4 9-4M12 11v10" />
     </svg>
   );
 }

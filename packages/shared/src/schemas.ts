@@ -66,6 +66,19 @@ export const paymentInputSchema = z.object({
 
 export type PaymentInput = z.infer<typeof paymentInputSchema>;
 
+export const purchaseInputSchema = z.object({
+  itemId: z.string().min(1, "Choose what you bought"),
+  date: isoDate,
+  quantity: z.coerce.number().positive("Enter how much you bought"),
+  unit: z.enum(["piece", "kg", "g", "litre", "sack", "box", "crate"]),
+  /** Entered in cedis per unit, converted to pesewas before storage. */
+  unitPriceCedis: z.coerce.number().positive("Enter the price for one unit"),
+  supplier: z.string().trim().optional(),
+  note: z.string().trim().optional(),
+});
+
+export type PurchaseInput = z.infer<typeof purchaseInputSchema>;
+
 export const costInputSchema = z.object({
   date: isoDate,
   category: z.enum(["gas", "ingredients", "transport"]),

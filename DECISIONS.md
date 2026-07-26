@@ -51,6 +51,17 @@ not a detail to resolve later. Answers go into a dated entry below.
   deliveries out of "needs attention" rather than assume.
 - **Cost granularity.** Gas, ingredients, and transport as daily lump sums, or
   allocated per batch for profit-per-loaf? Does profit include wages?
+- **Stock on hand (INV-1).** The system records what was bought, not what is
+  left. Knowing the remaining stock means recording how much of each supply goes
+  into a bake, which nobody does today. Does the owner want that, or is purchase
+  history enough? Real stock tracking is a much larger feature and would need her
+  to weigh bread against ingredients every day.
+- **Supply catalogue (INV-2).** Items are a fixed list (flour, yeast, butter,
+  sugar, salt, gas). Does the owner need to add her own, and should buying
+  something new create the item on the fly?
+- **Price changes (INV-3).** Purchases record the price paid each time, so a
+  supplier's price rising is visible in the history. Does she want to be warned
+  when a price moves, and by how much?
 - **Phone OTP budget.** Supabase phone auth needs an SMS provider billed per
   message in Ghana. Is there a budget, or should admin use email + password?
 - **Owner-entered orders.** Confirming the assumption that admin can create an

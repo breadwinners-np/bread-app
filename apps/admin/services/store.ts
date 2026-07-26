@@ -22,6 +22,8 @@ import {
   type Order,
   type Payment,
   type Product,
+  type Purchase,
+  type SupplyItem,
 } from "@bread/shared";
 
 export interface Store {
@@ -31,6 +33,8 @@ export interface Store {
   deliveries: Delivery[];
   payments: Payment[];
   costs: Cost[];
+  supplyItems: SupplyItem[];
+  purchases: Purchase[];
 }
 
 function seed(): Store {
@@ -158,16 +162,67 @@ function seed(): Store {
     },
   ];
 
+  // Costs that have no countable item. Anything bought by the sack, kilo, or
+  // cylinder is a purchase instead, so nothing is counted in both places.
   const costs: Cost[] = [
-    { id: "cst-1", date: today, category: "gas", amountPesewas: 45000, note: "Furnace refill" },
-    { id: "cst-2", date: today, category: "ingredients", amountPesewas: 120000, note: "Flour, 4 sacks" },
-    { id: "cst-3", date: today, category: "transport", amountPesewas: 18000, note: "Fuel for the van" },
-    { id: "cst-4", date: yesterday, category: "ingredients", amountPesewas: 95000, note: "Yeast, butter, sugar" },
-    { id: "cst-5", date: yesterday, category: "transport", amountPesewas: 16000 },
-    { id: "cst-6", date: twoDaysAgo, category: "gas", amountPesewas: 45000 },
+    { id: "cst-1", date: today, category: "transport", amountPesewas: 18000, note: "Fuel for the van" },
+    { id: "cst-2", date: yesterday, category: "transport", amountPesewas: 16000 },
+    { id: "cst-3", date: twoDaysAgo, category: "transport", amountPesewas: 17000, note: "Fuel for the van" },
   ];
 
-  return { customers, products, orders, deliveries, payments, costs };
+  const supplyItems: SupplyItem[] = [
+    { id: "sup-1", name: "Flour", defaultUnit: "sack", category: "ingredients", active: true },
+    { id: "sup-2", name: "Yeast", defaultUnit: "kg", category: "ingredients", active: true },
+    { id: "sup-3", name: "Butter", defaultUnit: "kg", category: "ingredients", active: true },
+    { id: "sup-4", name: "Sugar", defaultUnit: "kg", category: "ingredients", active: true },
+    { id: "sup-5", name: "Salt", defaultUnit: "kg", category: "ingredients", active: true },
+    { id: "sup-6", name: "Gas cylinder", defaultUnit: "piece", category: "gas", active: true },
+  ];
+
+  const purchases: Purchase[] = [
+    purchase("pur-1", "sup-1", today, 4, "sack", 30000, "Kwame's Mill"),
+    purchase("pur-2", "sup-6", today, 1, "piece", 45000, "Total Baatsonaa", "Furnace refill"),
+    purchase("pur-3", "sup-2", yesterday, 2, "kg", 9000, "Makola market"),
+    purchase("pur-4", "sup-3", yesterday, 5, "kg", 6000, "Makola market"),
+    purchase("pur-5", "sup-4", yesterday, 25, "kg", 1800, "Makola market"),
+    purchase("pur-6", "sup-5", yesterday, 2, "kg", 800, "Makola market"),
+    purchase("pur-7", "sup-1", twoDaysAgo, 4, "sack", 29500, "Kwame's Mill", "Price was lower this week"),
+    purchase("pur-8", "sup-6", twoDaysAgo, 1, "piece", 45000, "Total Baatsonaa"),
+  ];
+
+  return {
+    customers,
+    products,
+    orders,
+    deliveries,
+    payments,
+    costs,
+    supplyItems,
+    purchases,
+  };
+}
+
+function purchase(
+  id: string,
+  itemId: string,
+  date: string,
+  quantity: number,
+  unit: Purchase["unit"],
+  unitPricePesewas: number,
+  supplier?: string,
+  note?: string,
+): Purchase {
+  return {
+    id,
+    itemId,
+    date,
+    quantity,
+    unit,
+    unitPricePesewas,
+    supplier,
+    note,
+    recordedAt: `${date}T08:00:00Z`,
+  };
 }
 
 function order(
