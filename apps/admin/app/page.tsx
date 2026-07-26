@@ -9,7 +9,6 @@ import {
   todayIso,
 } from "@bread/shared";
 
-import { BreadLines } from "@/components/bread-lines";
 import {
   Badge,
   ButtonLink,
@@ -113,10 +112,10 @@ export default async function TodayPage() {
                   <p className="text-lg font-semibold text-stone-900">
                     {item.customer.name}
                   </p>
-                  <p>
-                    <BreadLines lines={item.lines} />
+                  <p className="text-stone-500">
+                    {item.orderedQuantity} × {item.productName} ·{" "}
+                    {item.customer.area}
                   </p>
-                  <p className="text-sm text-stone-500">{item.customer.area}</p>
                 </div>
 
                 <Badge
@@ -131,7 +130,7 @@ export default async function TodayPage() {
                   }
                 >
                   {item.delivery.status === "partial"
-                    ? `${DELIVERY_STATUS_LABELS.partial} (${item.deliveredQuantity} of ${item.orderedQuantity})`
+                    ? `${DELIVERY_STATUS_LABELS.partial} (${item.delivery.deliveredQuantity})`
                     : DELIVERY_STATUS_LABELS[item.delivery.status]}
                 </Badge>
               </li>

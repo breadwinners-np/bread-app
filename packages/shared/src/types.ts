@@ -78,24 +78,12 @@ export interface Order {
   rescheduledFrom?: string | null;
 }
 
-/**
- * What actually arrived for one line of an order.
- *
- * Per line, not per order: an order can carry several kinds of bread, and a
- * short drop is usually short on one of them. Recording a single total would
- * lose which bread was missing.
- */
-export interface DeliveryLine {
-  orderLineId: string;
-  deliveredQuantity: number;
-}
-
 export interface Delivery {
   id: string;
   orderId: string;
   status: DeliveryStatus;
-  /** One entry per order line. The delivered total is derived from these. */
-  lines: DeliveryLine[];
+  /** What actually arrived, which may differ from what was ordered. */
+  deliveredQuantity: number;
   deliveredAt?: string | null;
   note?: string;
 }
@@ -180,27 +168,11 @@ export interface MonthlyCommitment {
   confirmedByCustomer: boolean;
 }
 
-/** One kind of bread on an order, resolved for display. */
-export interface OrderLineDetail {
-  lineId: string;
-  productId: string;
-  productName: string;
-  quantity: number;
-  unitPricePesewas: number;
-}
-
-/** One kind of bread on a delivery: what was due against what arrived. */
-export interface DeliveryLineDetail extends OrderLineDetail {
-  deliveredQuantity: number;
-}
-
 /** A delivery joined to everything the owner needs to see it in context. */
 export interface DeliveryListItem {
   order: Order;
   customer: Customer;
   delivery: Delivery;
-  /** Every kind of bread on this drop, ordered against delivered. */
-  lines: DeliveryLineDetail[];
+  productName: string;
   orderedQuantity: number;
-  deliveredQuantity: number;
 }

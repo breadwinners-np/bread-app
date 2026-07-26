@@ -8,7 +8,6 @@ import {
   formatGhs,
 } from "@bread/shared";
 
-import { BreadLines } from "@/components/bread-lines";
 import {
   Badge,
   ButtonLink,
@@ -82,8 +81,8 @@ export default async function CustomerDetailPage({
                   <p className="font-semibold text-stone-900">
                     {formatDate(entry.order.deliveryDate)}
                   </p>
-                  <p>
-                    <BreadLines lines={entry.lines} />
+                  <p className="text-stone-500">
+                    {entry.quantity} × {entry.productName}
                   </p>
                 </div>
 

@@ -61,29 +61,6 @@ export function isDeliveryComplete(delivery: Delivery): boolean {
   return delivery.status === "delivered" || delivery.status === "partial";
 }
 
-/** Total loaves actually delivered, across every kind of bread on the drop. */
-export function deliveredQuantity(delivery: Delivery): number {
-  return delivery.lines.reduce(
-    (total, line) => total + line.deliveredQuantity,
-    0,
-  );
-}
-
-/**
- * Whether every line arrived in full, given what was ordered.
- *
- * Used to work out whether a recorded delivery is complete or short without
- * the caller having to compare line by line.
- */
-export function isFullyDelivered(order: Order, delivery: Delivery): boolean {
-  return order.lines.every((line) => {
-    const delivered = delivery.lines.find(
-      (entry) => entry.orderLineId === line.id,
-    );
-    return (delivered?.deliveredQuantity ?? 0) >= line.quantity;
-  });
-}
-
 /** How many of a day's deliveries are done. */
 export function deliveryProgress(deliveries: readonly Delivery[]): {
   done: number;

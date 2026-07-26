@@ -25,22 +25,14 @@ export const customerInputSchema = z.object({
 
 export type CustomerInput = z.infer<typeof customerInputSchema>;
 
-/** One kind of bread on a new order. */
-export const orderLineInputSchema = z.object({
-  productId: z.string().min(1),
+export const orderInputSchema = z.object({
+  customerId: z.string().min(1, "Choose a customer"),
+  deliveryDate: isoDate,
+  productId: z.string().min(1, "Choose a product"),
   quantity: z.coerce
     .number()
     .int("Quantity must be a whole number")
     .positive("Quantity must be more than zero"),
-});
-
-export const orderInputSchema = z.object({
-  customerId: z.string().min(1, "Choose a customer"),
-  deliveryDate: isoDate,
-  /** An order can carry several kinds of bread. At least one is required. */
-  lines: z
-    .array(orderLineInputSchema)
-    .min(1, "Enter a quantity for at least one kind of bread"),
 });
 
 export type OrderInput = z.infer<typeof orderInputSchema>;
@@ -48,18 +40,10 @@ export type OrderInput = z.infer<typeof orderInputSchema>;
 export const recordDeliverySchema = z.object({
   orderId: z.string().min(1),
   status: z.enum(["delivered", "partial", "not_delivered"]),
-  /** What arrived, per kind of bread. */
-  lines: z
-    .array(
-      z.object({
-        orderLineId: z.string().min(1),
-        deliveredQuantity: z.coerce
-          .number()
-          .int("Quantity must be a whole number")
-          .min(0, "Quantity cannot be negative"),
-      }),
-    )
-    .min(1),
+  deliveredQuantity: z.coerce
+    .number()
+    .int("Quantity must be a whole number")
+    .min(0, "Quantity cannot be negative"),
   note: z.string().trim().optional(),
 });
 

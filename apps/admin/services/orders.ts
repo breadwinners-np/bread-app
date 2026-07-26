@@ -5,21 +5,14 @@
  * here — so the mobile app arrives at exactly the same numbers.
  */
 
-import {
-  orderQuantity,
-  orderTotalPesewas,
-  type Order,
-  type OrderInput,
-  type OrderLineDetail,
-} from "@bread/shared";
+import { orderTotalPesewas, type Order, type OrderInput } from "@bread/shared";
 
 import { getStore, newId, simulateLatency } from "./store";
 
 export interface OrderWithContext {
   order: Order;
   customerName: string;
-  /** Every kind of bread on the order, not just the first. */
-  lines: OrderLineDetail[];
+  productName: string;
   quantity: number;
   totalPesewas: number;
 }
@@ -60,24 +53,12 @@ export async function listOrdersForCustomer(
 export async function createOrder(input: OrderInput): Promise<Order> {
   const store = getStore();
 
+  const product = store.products.find((entry) => entry.id === input.productId);
+  if (!product) {
+    throw new Error("That product does not exist");
+  }
+
   const id = newId("ord");
-
-  const lines = input.lines.map((line, index) => {
-    const product = store.products.find((entry) => entry.id === line.productId);
-    if (!product) {
-      throw new Error("That bread does not exist");
-    }
-
-    return {
-      id: `${id}-l${index + 1}`,
-      productId: product.id,
-      quantity: line.quantity,
-      // Price snapshotted at order time (decision 0004) — a later price
-      // change must never rewrite what this order was worth.
-      unitPricePesewas: product.pricePesewas,
-    };
-  });
-
   const order: Order = {
     id,
     customerId: input.customerId,
@@ -85,7 +66,16 @@ export async function createOrder(input: OrderInput): Promise<Order> {
     status: "scheduled",
     source: "admin",
     createdAt: new Date().toISOString(),
-    lines,
+    lines: [
+      {
+        id: `${id}-l1`,
+        productId: product.id,
+        quantity: input.quantity,
+        // Price snapshotted at order time (decision 0004) — a later price
+        // change must never rewrite what this order was worth.
+        unitPricePesewas: product.pricePesewas,
+      },
+    ],
   };
 
   store.orders.push(order);
@@ -93,41 +83,25 @@ export async function createOrder(input: OrderInput): Promise<Order> {
     id: newId("dlv"),
     orderId: order.id,
     status: "pending",
-    lines: lines.map((line) => ({
-      orderLineId: line.id,
-      deliveredQuantity: 0,
-    })),
+    deliveredQuantity: 0,
     deliveredAt: null,
   });
 
   return simulateLatency(order);
 }
 
-/** Resolve an order's lines to product names for display. */
-export function orderLineDetails(order: Order): OrderLineDetail[] {
-  const store = getStore();
-
-  return order.lines.map((line) => {
-    const product = store.products.find((entry) => entry.id === line.productId);
-    return {
-      lineId: line.id,
-      productId: line.productId,
-      productName: product?.name ?? "Unknown bread",
-      quantity: line.quantity,
-      unitPricePesewas: line.unitPricePesewas,
-    };
-  });
-}
-
 function withContext(order: Order): OrderWithContext {
   const store = getStore();
+
   const customer = store.customers.find((entry) => entry.id === order.customerId);
+  const firstLine = order.lines[0];
+  const product = store.products.find((entry) => entry.id === firstLine?.productId);
 
   return {
     order,
     customerName: customer?.name ?? "Unknown customer",
-    lines: orderLineDetails(order),
-    quantity: orderQuantity(order),
+    productName: product?.name ?? "Unknown product",
+    quantity: order.lines.reduce((total, line) => total + line.quantity, 0),
     totalPesewas: orderTotalPesewas(order),
   };
 }

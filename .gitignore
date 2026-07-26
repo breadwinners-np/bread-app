@@ -108,3 +108,6 @@ Thumbs.db
 *.xlsx
 *.csv
 !**/fixtures/*.csv
+
+# Per-machine Claude Code permissions — each teammate keeps their own
+.claude/settings.local.json

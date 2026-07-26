@@ -12,7 +12,6 @@ import {
 } from "@bread/shared";
 
 import { recordDeliveryAction, rescheduleDeliveryAction } from "@/app/actions";
-import { DeliveredBreadLines } from "@/components/bread-lines";
 import {
   Badge,
   ButtonLink,
@@ -149,6 +148,9 @@ async function DayView({
                   <p className="text-xl font-bold text-stone-900">
                     {item.customer.name}
                   </p>
+                  <p className="text-lg text-stone-600">
+                    {item.orderedQuantity} × {item.productName}
+                  </p>
                   <p className="text-stone-500">
                     {item.customer.area} · {item.customer.phone}
                   </p>
@@ -161,16 +163,9 @@ async function DayView({
 
                 <Badge tone={deliveryTone(item.delivery.status)}>
                   {item.delivery.status === "partial"
-                    ? `${DELIVERY_STATUS_LABELS.partial} — ${item.deliveredQuantity} of ${item.orderedQuantity}`
+                    ? `${DELIVERY_STATUS_LABELS.partial} — ${item.delivery.deliveredQuantity} of ${item.orderedQuantity}`
                     : DELIVERY_STATUS_LABELS[item.delivery.status]}
                 </Badge>
-              </div>
-
-              <div className="mb-4 rounded-xl bg-stone-50 px-4 py-3">
-                <DeliveredBreadLines
-                  lines={item.lines}
-                  showDelivered={item.delivery.status !== "pending"}
-                />
               </div>
 
               {item.delivery.note && (
@@ -179,78 +174,54 @@ async function DayView({
                 </p>
               )}
 
-              <form action={recordDeliveryAction} className="space-y-4">
+              <form action={recordDeliveryAction} className="flex flex-wrap gap-3">
                 <input type="hidden" name="orderId" value={item.order.id} />
-                {item.lines.map((line) => (
-                  <input
-                    key={line.lineId}
-                    type="hidden"
-                    name={`line-${line.lineId}`}
-                    value={line.quantity}
-                  />
-                ))}
+                <input
+                  type="hidden"
+                  name="orderedQuantity"
+                  value={item.orderedQuantity}
+                />
 
-                <div className="flex flex-wrap gap-3">
+                <button
+                  type="submit"
+                  name="status"
+                  value="delivered"
+                  className={buttonClass("primary")}
+                >
+                  Delivered in full
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <label htmlFor={`qty-${item.delivery.id}`} className="sr-only">
+                    Quantity delivered to {item.customer.name}
+                  </label>
+                  <input
+                    id={`qty-${item.delivery.id}`}
+                    type="number"
+                    name="deliveredQuantity"
+                    min={0}
+                    max={item.orderedQuantity}
+                    defaultValue={item.orderedQuantity}
+                    className={`${inputClass} w-28`}
+                  />
                   <button
                     type="submit"
                     name="status"
-                    value="delivered"
-                    className={buttonClass("primary")}
+                    value="partial"
+                    className={buttonClass("secondary")}
                   >
-                    Delivered in full
-                  </button>
-                  <button
-                    type="submit"
-                    name="status"
-                    value="not_delivered"
-                    className={buttonClass("quiet")}
-                  >
-                    Could not deliver
+                    Part delivered
                   </button>
                 </div>
 
-                <details className="rounded-xl border border-stone-200 px-4 py-3">
-                  <summary className="cursor-pointer text-base font-semibold text-stone-700">
-                    Some bread was short
-                  </summary>
-
-                  <div className="mt-4 space-y-3">
-                    {item.lines.map((line) => (
-                      <div
-                        key={line.lineId}
-                        className="flex flex-wrap items-center justify-between gap-3"
-                      >
-                        <label
-                          htmlFor={`delivered-${line.lineId}`}
-                          className="text-base text-stone-700"
-                        >
-                          {line.productName}{" "}
-                          <span className="text-stone-500">
-                            ({line.quantity} due)
-                          </span>
-                        </label>
-                        <input
-                          id={`delivered-${line.lineId}`}
-                          name={`delivered-${line.lineId}`}
-                          type="number"
-                          min={0}
-                          max={line.quantity}
-                          defaultValue={line.quantity}
-                          className={`${inputClass} w-28`}
-                        />
-                      </div>
-                    ))}
-
-                    <button
-                      type="submit"
-                      name="status"
-                      value="partial"
-                      className={buttonClass("secondary")}
-                    >
-                      Save what was delivered
-                    </button>
-                  </div>
-                </details>
+                <button
+                  type="submit"
+                  name="status"
+                  value="not_delivered"
+                  className={buttonClass("quiet")}
+                >
+                  Could not deliver
+                </button>
               </form>
             </Card>
           ))}
@@ -293,9 +264,9 @@ function OutstandingView({
                 <p className="text-xl font-bold text-stone-900">
                   {item.customer.name}
                 </p>
-                <div className="my-2">
-                  <DeliveredBreadLines lines={item.lines} showDelivered={false} />
-                </div>
+                <p className="text-lg text-stone-600">
+                  {item.orderedQuantity} × {item.productName}
+                </p>
                 <p className="text-stone-500">
                   {item.customer.area} · {item.customer.phone}
                 </p>
@@ -351,14 +322,11 @@ function OutstandingView({
 
               <form action={recordDeliveryAction}>
                 <input type="hidden" name="orderId" value={item.order.id} />
-                {item.lines.map((line) => (
-                  <input
-                    key={line.lineId}
-                    type="hidden"
-                    name={`line-${line.lineId}`}
-                    value={line.quantity}
-                  />
-                ))}
+                <input
+                  type="hidden"
+                  name="orderedQuantity"
+                  value={item.orderedQuantity}
+                />
                 <button
                   type="submit"
                   name="status"
