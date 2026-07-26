@@ -48,7 +48,7 @@ function seed(): Store {
   const customers: Customer[] = [
     {
       id: "cus-1",
-      name: "Barcelona Total",
+      name: "Baatsonaa Total",
       phone: "+233 24 111 2233",
       type: "business",
       area: "Osu",

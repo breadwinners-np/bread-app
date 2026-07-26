@@ -140,7 +140,7 @@ screens — wholesale confirms a monthly quantity and views a delivery schedule,
 retail orders for a date and pays now. Two codebases would double the build and
 release burden for that.
 
-When the buyer app is built, ship **wholesale first**: smaller surface, Barcelona
+When the buyer app is built, ship **wholesale first**: smaller surface, Baatsonaa
 Total is an obvious pilot customer, and it validates offline sync and OTP auth
 with one cooperative user rather than a crowd.
 

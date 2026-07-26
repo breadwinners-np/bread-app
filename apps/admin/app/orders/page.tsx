@@ -87,7 +87,7 @@ export default async function OrdersPage() {
 
       <p className="mt-6 rounded-xl bg-amber-50 px-5 py-4 text-amber-900">
         <strong className="font-semibold">Monthly agreements are missing.</strong>{" "}
-        Wholesale customers like Barcelona Total agree a quantity for the whole
+        Wholesale customers like Baatsonaa Total agree a quantity for the whole
         month, but how that total becomes daily deliveries is still open (ORD-3),
         so orders here are day-by-day only.
       </p>

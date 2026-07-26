@@ -18,7 +18,7 @@ export function CustomerForm() {
   return (
     <form action={formAction} className="space-y-6">
       <Field label="Name">
-        <input name="name" className={inputClass} placeholder="Barcelona Total" />
+        <input name="name" className={inputClass} placeholder="Baatsonaa Total" />
         <FieldError message={state.fieldErrors?.name} />
       </Field>
 

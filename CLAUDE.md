@@ -21,7 +21,7 @@ placed on a phone reaches the owner's screen through Supabase realtime.
 
 ### The business, in short
 
-- **Business/wholesale customers** (led by Barcelona Total) agree a quantity for
+- **Business/wholesale customers** (led by Baatsonaa Total) agree a quantity for
   the whole month by phone or text and pay by cheque.
 - **Individual/retail customers** buy smaller amounts and pay in cash, mobile
   money, or cheque.
