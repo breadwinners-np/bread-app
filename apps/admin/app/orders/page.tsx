@@ -5,6 +5,7 @@ import {
   relativeDayLabel,
 } from "@bread/shared";
 
+import { BreadLines } from "@/components/bread-lines";
 import {
   Badge,
   ButtonLink,
@@ -43,12 +44,12 @@ export default async function OrdersPage() {
                   key={entry.order.id}
                   className="flex flex-wrap items-center justify-between gap-4 px-6 py-5"
                 >
-                  <div className="min-w-48">
+                  <div className="min-w-64">
                     <p className="text-lg font-semibold text-stone-900">
                       {entry.customerName}
                     </p>
-                    <p className="text-stone-500">
-                      {entry.quantity} × {entry.productName}
+                    <p>
+                      <BreadLines lines={entry.lines} />
                     </p>
                   </div>
 

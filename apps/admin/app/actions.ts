@@ -55,11 +55,20 @@ export async function createOrderAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  // One quantity input per kind of bread, named `qty-<productId>`. Blank and
+  // zero entries are dropped so the customer only gets what was asked for.
+  const lines = [...formData.entries()]
+    .filter(([key]) => key.startsWith("qty-"))
+    .map(([key, value]) => ({
+      productId: key.slice("qty-".length),
+      quantity: Number(value),
+    }))
+    .filter((line) => Number.isFinite(line.quantity) && line.quantity > 0);
+
   const parsed = orderInputSchema.safeParse({
     customerId: formData.get("customerId"),
     deliveryDate: formData.get("deliveryDate"),
-    productId: formData.get("productId"),
-    quantity: formData.get("quantity"),
+    lines,
   });
 
   if (!parsed.success) {
@@ -75,20 +84,35 @@ export async function createOrderAction(
 
 export async function recordDeliveryAction(formData: FormData): Promise<void> {
   const status = formData.get("status");
-  const orderedQuantity = Number(formData.get("orderedQuantity") ?? 0);
 
-  // "Delivered in full" needs no typed quantity — take it from the order.
-  const rawQuantity =
-    status === "delivered"
-      ? orderedQuantity
-      : status === "not_delivered"
-        ? 0
-        : formData.get("deliveredQuantity");
+  /*
+   * Each kind of bread on the order submits two fields:
+   *   line-<orderLineId>          what was ordered
+   *   delivered-<orderLineId>     what the owner typed
+   *
+   * "Delivered in full" and "Could not deliver" need no typing — the ordered
+   * quantity and zero stand in, so the common cases are one click.
+   */
+  const lines = [...formData.entries()]
+    .filter(([key]) => key.startsWith("line-"))
+    .map(([key, ordered]) => {
+      const orderLineId = key.slice("line-".length);
+
+      const typed = formData.get(`delivered-${orderLineId}`);
+      const deliveredQuantity =
+        status === "delivered"
+          ? Number(ordered)
+          : status === "not_delivered"
+            ? 0
+            : Number(typed ?? 0);
+
+      return { orderLineId, deliveredQuantity };
+    });
 
   const parsed = recordDeliverySchema.safeParse({
     orderId: formData.get("orderId"),
     status,
-    deliveredQuantity: rawQuantity,
+    lines,
     note: formData.get("note") || undefined,
   });
 

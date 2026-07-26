@@ -44,10 +44,13 @@ function seed(): Store {
   const fourDaysAgo = addDays(today, -4);
   const tomorrow = addDays(today, 1);
 
+  // Prices are placeholders. Whether there is one price list or a price
+  // negotiated per wholesale customer is still open (PRD-4).
   const products: Product[] = [
-    { id: "prd-1", name: "Sugar bread", unit: "loaf", pricePesewas: 1200, active: true },
-    { id: "prd-2", name: "Tea bread", unit: "loaf", pricePesewas: 1000, active: true },
-    { id: "prd-3", name: "Butter bread", unit: "loaf", pricePesewas: 1800, active: true },
+    { id: "prd-sugar", name: "Sugar bread", unit: "loaf", pricePesewas: 1200, active: true },
+    { id: "prd-butter", name: "Butter bread", unit: "loaf", pricePesewas: 1800, active: true },
+    { id: "prd-mixfruit", name: "Mixfruit bread", unit: "loaf", pricePesewas: 2500, active: true },
+    { id: "prd-brown", name: "Brown bread", unit: "loaf", pricePesewas: 1500, active: true },
   ];
 
   const customers: Customer[] = [
@@ -93,47 +96,103 @@ function seed(): Store {
 
   const orders: Order[] = [
     // Today
-    order("ord-1", "cus-1", today, "scheduled", "admin", "prd-1", 120, 1200),
-    order("ord-2", "cus-2", today, "scheduled", "admin", "prd-2", 60, 1000),
-    order("ord-3", "cus-3", today, "scheduled", "app", "prd-1", 6, 1200),
-    order("ord-4", "cus-4", today, "scheduled", "app", "prd-3", 4, 1800),
-    order("ord-5", "cus-5", today, "scheduled", "admin", "prd-3", 10, 1800),
+    order("ord-1", "cus-1", today, "scheduled", "admin", [
+      ["prd-sugar", 120, 1200],
+      ["prd-brown", 40, 1500],
+    ]),
+    order("ord-2", "cus-2", today, "scheduled", "admin", [
+      ["prd-sugar", 40, 1200],
+      ["prd-butter", 20, 1800],
+    ]),
+    order("ord-3", "cus-3", today, "scheduled", "app", [["prd-sugar", 6, 1200]]),
+    order("ord-4", "cus-4", today, "scheduled", "app", [
+      ["prd-butter", 4, 1800],
+      ["prd-mixfruit", 2, 2500],
+    ]),
+    order("ord-5", "cus-5", today, "scheduled", "admin", [
+      ["prd-mixfruit", 6, 2500],
+      ["prd-butter", 4, 1800],
+    ]),
     // Tomorrow
-    order("ord-6", "cus-1", tomorrow, "scheduled", "admin", "prd-1", 120, 1200),
-    order("ord-7", "cus-3", tomorrow, "scheduled", "app", "prd-2", 8, 1000),
+    order("ord-6", "cus-1", tomorrow, "scheduled", "admin", [
+      ["prd-sugar", 120, 1200],
+      ["prd-brown", 40, 1500],
+    ]),
+    order("ord-7", "cus-3", tomorrow, "scheduled", "app", [
+      ["prd-brown", 8, 1500],
+    ]),
     // Yesterday — already delivered
-    order("ord-8", "cus-1", yesterday, "delivered", "admin", "prd-1", 120, 1200),
-    order("ord-9", "cus-2", yesterday, "partially_delivered", "admin", "prd-2", 60, 1000),
-    order("ord-10", "cus-5", yesterday, "delivered", "admin", "prd-3", 10, 1800),
+    order("ord-8", "cus-1", yesterday, "delivered", "admin", [
+      ["prd-sugar", 120, 1200],
+      ["prd-brown", 40, 1500],
+    ]),
+    order("ord-9", "cus-2", yesterday, "partially_delivered", "admin", [
+      ["prd-sugar", 40, 1200],
+      ["prd-butter", 20, 1800],
+    ]),
+    order("ord-10", "cus-5", yesterday, "delivered", "admin", [
+      ["prd-mixfruit", 6, 2500],
+    ]),
     // Two days ago
-    order("ord-11", "cus-1", twoDaysAgo, "delivered", "admin", "prd-1", 120, 1200),
-    order("ord-12", "cus-4", twoDaysAgo, "delivered", "app", "prd-1", 5, 1200),
+    order("ord-11", "cus-1", twoDaysAgo, "delivered", "admin", [
+      ["prd-sugar", 120, 1200],
+      ["prd-brown", 40, 1500],
+    ]),
+    order("ord-12", "cus-4", twoDaysAgo, "delivered", "app", [
+      ["prd-sugar", 5, 1200],
+    ]),
     // Needs attention: nobody was there to receive it
-    order("ord-13", "cus-5", twoDaysAgo, "scheduled", "admin", "prd-3", 12, 1800),
+    order("ord-13", "cus-5", twoDaysAgo, "scheduled", "admin", [
+      ["prd-butter", 8, 1800],
+      ["prd-mixfruit", 4, 2500],
+    ]),
     // Needs attention: the day passed and nothing was ever recorded
-    order("ord-14", "cus-3", fourDaysAgo, "scheduled", "app", "prd-2", 8, 1000),
+    order("ord-14", "cus-3", fourDaysAgo, "scheduled", "app", [
+      ["prd-brown", 8, 1500],
+    ]),
   ];
 
   const deliveries: Delivery[] = [
     // Today — one already done, the rest still to go
-    delivery("dlv-1", "ord-1", "delivered", 120, `${today}T05:40:00Z`),
-    delivery("dlv-2", "ord-2", "pending", 0, null),
-    delivery("dlv-3", "ord-3", "pending", 0, null),
-    delivery("dlv-4", "ord-4", "pending", 0, null),
-    delivery("dlv-5", "ord-5", "pending", 0, null),
+    fullDelivery("dlv-1", "ord-1", orders, `${today}T05:40:00Z`),
+    pendingDelivery("dlv-2", "ord-2", orders),
+    pendingDelivery("dlv-3", "ord-3", orders),
+    pendingDelivery("dlv-4", "ord-4", orders),
+    pendingDelivery("dlv-5", "ord-5", orders),
     // Tomorrow
-    delivery("dlv-6", "ord-6", "pending", 0, null),
-    delivery("dlv-7", "ord-7", "pending", 0, null),
+    pendingDelivery("dlv-6", "ord-6", orders),
+    pendingDelivery("dlv-7", "ord-7", orders),
     // Yesterday
-    delivery("dlv-8", "ord-8", "delivered", 120, `${yesterday}T05:35:00Z`),
-    delivery("dlv-9", "ord-9", "partial", 45, `${yesterday}T06:10:00Z`, "Shop was closed, left what they took"),
-    delivery("dlv-10", "ord-10", "delivered", 10, `${yesterday}T06:50:00Z`),
+    fullDelivery("dlv-8", "ord-8", orders, `${yesterday}T05:35:00Z`),
+    // Short on butter only — the reason per-line quantities matter
+    delivery(
+      "dlv-9",
+      "ord-9",
+      "partial",
+      [
+        ["ord-9-l1", 40],
+        ["ord-9-l2", 5],
+      ],
+      `${yesterday}T06:10:00Z`,
+      "Shop was closed, they only took what they could store",
+    ),
+    fullDelivery("dlv-10", "ord-10", orders, `${yesterday}T06:50:00Z`),
     // Two days ago
-    delivery("dlv-11", "ord-11", "delivered", 120, `${twoDaysAgo}T05:30:00Z`),
-    delivery("dlv-12", "ord-12", "delivered", 5, `${twoDaysAgo}T07:05:00Z`),
-    delivery("dlv-13", "ord-13", "not_delivered", 0, `${twoDaysAgo}T06:20:00Z`, "Nobody at the house, phone off"),
+    fullDelivery("dlv-11", "ord-11", orders, `${twoDaysAgo}T05:30:00Z`),
+    fullDelivery("dlv-12", "ord-12", orders, `${twoDaysAgo}T07:05:00Z`),
+    delivery(
+      "dlv-13",
+      "ord-13",
+      "not_delivered",
+      [
+        ["ord-13-l1", 0],
+        ["ord-13-l2", 0],
+      ],
+      `${twoDaysAgo}T06:20:00Z`,
+      "Nobody at the house, phone off",
+    ),
     // Never recorded at all — the round moved on and this was missed
-    delivery("dlv-14", "ord-14", "pending", 0, null),
+    pendingDelivery("dlv-14", "ord-14", orders),
   ];
 
   const payments: Payment[] = [
@@ -225,15 +284,14 @@ function purchase(
   };
 }
 
+/** `lines` is [productId, quantity, unitPricePesewas] per kind of bread. */
 function order(
   id: string,
   customerId: string,
   deliveryDate: string,
   status: Order["status"],
   source: Order["source"],
-  productId: string,
-  quantity: number,
-  unitPricePesewas: number,
+  lines: [string, number, number][],
 ): Order {
   return {
     id,
@@ -242,19 +300,68 @@ function order(
     status,
     source,
     createdAt: `${deliveryDate}T00:00:00Z`,
-    lines: [{ id: `${id}-l1`, productId, quantity, unitPricePesewas }],
+    lines: lines.map(([productId, quantity, unitPricePesewas], index) => ({
+      id: `${id}-l${index + 1}`,
+      productId,
+      quantity,
+      unitPricePesewas,
+    })),
   };
 }
 
+/** `lines` is [orderLineId, deliveredQuantity]. */
 function delivery(
   id: string,
   orderId: string,
   status: Delivery["status"],
-  deliveredQuantity: number,
+  lines: [string, number][],
   deliveredAt: string | null,
   note?: string,
 ): Delivery {
-  return { id, orderId, status, deliveredQuantity, deliveredAt, note };
+  return {
+    id,
+    orderId,
+    status,
+    lines: lines.map(([orderLineId, deliveredQuantity]) => ({
+      orderLineId,
+      deliveredQuantity,
+    })),
+    deliveredAt,
+    note,
+  };
+}
+
+/** Every line delivered in full, read off the order so the two cannot drift. */
+function fullDelivery(
+  id: string,
+  orderId: string,
+  orders: Order[],
+  deliveredAt: string,
+): Delivery {
+  const source = orders.find((entry) => entry.id === orderId);
+  return delivery(
+    id,
+    orderId,
+    "delivered",
+    (source?.lines ?? []).map((line) => [line.id, line.quantity]),
+    deliveredAt,
+  );
+}
+
+/** Nothing recorded yet — one zero entry per line of the order. */
+function pendingDelivery(
+  id: string,
+  orderId: string,
+  orders: Order[],
+): Delivery {
+  const source = orders.find((entry) => entry.id === orderId);
+  return delivery(
+    id,
+    orderId,
+    "pending",
+    (source?.lines ?? []).map((line) => [line.id, 0]),
+    null,
+  );
 }
 
 declare global {
