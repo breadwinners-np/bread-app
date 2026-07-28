@@ -7,9 +7,17 @@
 
 import { z } from "zod";
 
+import { isValidIsoDate } from "./dates";
+
+/**
+ * A real calendar day, not merely something shaped like one. The pattern alone
+ * accepts `2026-13-45` and `2026-02-31`, which then flow into date arithmetic
+ * as Invalid Dates.
+ */
 const isoDate = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date in the form YYYY-MM-DD");
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date in the form YYYY-MM-DD")
+  .refine(isValidIsoDate, "That day does not exist");
 
 export const customerInputSchema = z.object({
   name: z.string().trim().min(1, "Enter the customer's name"),

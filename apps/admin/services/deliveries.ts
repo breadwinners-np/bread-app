@@ -8,6 +8,7 @@
 
 import {
   daysBetween,
+  orderQuantity,
   orderStatusForDelivery,
   outstandingReason,
   todayIso,
@@ -138,6 +139,19 @@ export async function rescheduleDelivery(
   await simulateLatency(null);
 }
 
+/**
+ * Record what happened to one delivery.
+ *
+ * The stored quantity is derived here rather than taken on trust. Server
+ * actions are reachable by direct POST, so every field in the submission is
+ * under the caller's control — including the ordered quantity the form sends
+ * alongside it. This function looks the order up and is the only thing that
+ * knows the real number.
+ *
+ * A full delivery is worth the whole order and a failed one is worth nothing,
+ * so neither needs a quantity from the caller at all. Only a part delivery
+ * does, and it cannot exceed what was ordered.
+ */
 export async function recordDelivery(input: RecordDeliveryInput): Promise<void> {
   const store = getStore();
 
@@ -148,8 +162,33 @@ export async function recordDelivery(input: RecordDeliveryInput): Promise<void> 
     throw new Error("That delivery does not exist");
   }
 
+  const orderedQuantity = orderQuantity(order);
+  let deliveredQuantity: number;
+
+  switch (input.status) {
+    case "delivered":
+      deliveredQuantity = orderedQuantity;
+      break;
+    case "not_delivered":
+      deliveredQuantity = 0;
+      break;
+    case "partial":
+      if (input.deliveredQuantity < 1) {
+        throw new Error(
+          "A part delivery has to be at least one. Use “could not deliver” if nothing arrived.",
+        );
+      }
+      if (input.deliveredQuantity > orderedQuantity) {
+        throw new Error(
+          `Only ${orderedQuantity} were ordered, so ${input.deliveredQuantity} cannot have been delivered`,
+        );
+      }
+      deliveredQuantity = input.deliveredQuantity;
+      break;
+  }
+
   delivery.status = input.status;
-  delivery.deliveredQuantity = input.deliveredQuantity;
+  delivery.deliveredQuantity = deliveredQuantity;
   delivery.deliveredAt = new Date().toISOString();
   delivery.note = input.note;
 
