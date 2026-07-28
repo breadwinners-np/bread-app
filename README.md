@@ -57,8 +57,11 @@ Install git and the GitHub CLI, then authenticate. On macOS:
 
 ```bash
 brew install git gh
-gh auth login     # GitHub.com → HTTPS → Login with a web browser
+gh auth login
 ```
+
+At the `gh auth login` prompts choose **GitHub.com**, then **HTTPS**, then
+**Login with a web browser**.
 
 On Windows use [git-scm.com](https://git-scm.com) and
 [cli.github.com](https://cli.github.com); on Linux use your package manager. SSH
@@ -84,26 +87,58 @@ git checkout chore/project-setup-docs
 New to the project? Read [HANDOFF.md](HANDOFF.md) first — it is the full context
 dump. Then [CLAUDE.md](CLAUDE.md) for the working rules.
 
-## Running the apps
+## Running the admin app
 
-**Nothing is scaffolded yet.** There is no `package.json`, no `apps/`, and no
-Supabase project — the repository currently holds documentation only. The
-commands below describe the intended setup and will not work until the apps are
-built. See [HANDOFF.md](HANDOFF.md) for exactly what exists today.
-
-Once scaffolded you will need Node.js 22+, npm 10+, Docker (for local Supabase),
-and the [Supabase CLI](https://supabase.com/docs/guides/cli). For the mobile app
-you will also need Android Studio or a physical Android device.
+You need Node.js 22+ and npm 10+. Nothing else — the prototype has no database.
 
 ```bash
 npm install
-cp .env.example .env          # then fill in your own values — see below
-supabase start                # local Postgres, Studio, and auth
-supabase db reset             # apply migrations and seed data
-
-npm run dev -w apps/admin     # http://localhost:3000
-npm run dev -w apps/mobile    # Expo dev server
+npm run dev
 ```
+
+Then open **http://localhost:3000**.
+
+Paste those two lines exactly, with nothing after them. zsh does not treat `#` as
+a comment in interactive shells by default, so a trailing comment becomes an
+argument and `next dev` fails with "Invalid project directory".
+
+**This is a prototype running on in-memory mock data.** There is no database and
+no login. Data resets when the dev server restarts, and everything in it is
+fabricated. Do not enter real customer information. See
+[DECISIONS.md](DECISIONS.md) entries 0008 and 0009.
+
+What works today: the daily delivery round, customers with balances, order
+history, recording payments against a customer's deliveries, inventory
+purchases, and reports over any stretch of days with charts and a plain-language
+summary. Recording costs that have no countable item is still a placeholder that
+names the questions blocking it.
+
+Other useful commands — `build` makes a production build, `typecheck` and `lint`
+run across every workspace:
+
+```bash
+npm run build
+npm run typecheck
+npm run lint
+```
+
+## Not built yet
+
+The mobile app and the database do not exist. Once the schema questions in
+[DECISIONS.md](DECISIONS.md) are answered, this is roughly what setup will
+become — Docker and the [Supabase CLI](https://supabase.com/docs/guides/cli) for
+the database, Android Studio or a device for the mobile app:
+
+```bash
+cp .env.example .env
+supabase start
+supabase db reset
+npm run dev -w apps/mobile
+```
+
+Copy `.env.example` and fill in your own values, `supabase start` brings up local
+Postgres and Studio, `db reset` applies migrations and seed data, and the last
+line starts the Expo dev server.
 
 ## Environment variables
 
@@ -124,8 +159,8 @@ migration that has already been merged — correct it with a new one.
 
 ```bash
 supabase migration new add_monthly_commitments
-supabase db reset             # rebuild locally from scratch
-supabase db push              # apply to the linked remote project
+supabase db reset
+supabase db push
 supabase gen types typescript --local > packages/shared/src/database.types.ts
 ```
 

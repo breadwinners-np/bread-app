@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/*
+ * The primary user is around fifty and not technical, working on a laptop.
+ * That drives three choices here: a larger base font than usual, light theme
+ * only (no dark mode surprises), and generous default spacing.
+ */
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  font-size: 17px;
+}
+
+body {
+  background-color: #fafaf9;
+  color: #1c1917;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible focus, because keyboard and mis-clicks both matter here. */
+:focus-visible {
+  outline: 3px solid #d97706;
+  outline-offset: 2px;
+}

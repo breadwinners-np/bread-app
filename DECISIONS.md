@@ -21,28 +21,67 @@ if a decision changes, add a new entry and mark the old one superseded.
 Business rules we do not know yet. Anything here is a **blocker for schema work**,
 not a detail to resolve later. Answers go into a dated entry below.
 
-- **Who carries the offline delivery checklist?** Offline-first is required for
-  distribution on the road, but the mobile app is described as the buyer app.
-  Is the driver a role inside the buyer app, a separate surface, or does the
-  owner travel with the laptop? Determines the whole sync architecture.
-- **How does a monthly wholesale commitment become daily deliveries?** Equal
-  split across the month, or a per-day quantity stated by the customer? What
-  happens to a month-end shortfall — carried, forgiven, or re-billed?
-- **Cheque lifecycle.** Is a cheque "paid" on receipt or on clearing? Do we need
-  received → deposited → cleared → bounced? A customer's balance means something
-  different at each step.
-- **Credit terms.** Do wholesale customers pay up front or in arrears? Are
-  partial payments allowed? Can a balance go negative, and up to what limit?
-- **Pricing.** One price list, or a negotiated price per wholesale customer?
-- **Unsold or refused bread.** Does a short or refused drop reduce what is owed?
-  Do we track waste as a cost?
-- **Cost granularity.** Gas, ingredients, and transport as daily lump sums, or
+Each question carries a stable identifier, because the code and the subagents
+cite them by identifier (`ORD-3`, `PAY-3`, …). If you add a question, give it one.
+
+- **Who carries the offline delivery checklist? (DST-6)** Offline-first is
+  required for distribution on the road, but the mobile app is described as the
+  buyer app. Is the driver a role inside the buyer app, a separate surface, or
+  does the owner travel with the laptop? Determines the whole sync architecture.
+- **How does a monthly wholesale commitment become daily deliveries? (ORD-3)**
+  Equal split across the month, or a per-day quantity stated by the customer?
+  What happens to a month-end shortfall — carried, forgiven, or re-billed?
+- **Cheque lifecycle (PAY-3).** Is a cheque "paid" on receipt or on clearing? Do
+  we need received → deposited → cleared → bounced? A customer's balance means
+  something different at each step.
+- **Credit terms (PAY-6).** Do wholesale customers pay up front or in arrears?
+  Are partial payments allowed? Can a balance go negative, and up to what limit?
+- **Which bread a lump sum pays for (PAY-7).** A monthly cheque covers many days
+  of bread. The code puts it against the oldest unpaid delivery first, which is
+  the ordinary rule, but nobody has confirmed it is hers. It changes which
+  delivery shows as paid, never the total owed. See 0013.
+- **Pricing (PRD-4).** One price list, or a negotiated price per wholesale
+  customer?
+- **The bread list (PRD-5).** Which types does she actually sell, and what does
+  each cost? The prototype's sugar / tea / butter bread is fabricated. See 0010 —
+  a reverted commit claimed the real four are sugar, butter, mixfruit and brown,
+  which is unconfirmed.
+- **Several breads on one order (ORD-12).** Does a single order routinely carry
+  more than one type of bread, and does a short drop need to say *which* bread
+  was short? The prototype assumes one type per order. See 0010.
+- **Unsold or refused bread (DST-7).** Does a short or refused drop reduce what
+  is owed? Do we track waste as a cost?
+- **Rescheduling (RSC-1).** When a failed delivery is moved to a later day, is it
+  the same obligation moved, or a fresh one? The prototype moves the order so
+  nothing is billed twice, but if the customer is charged for the failed attempt
+  *and* the replacement, that is wrong — and it depends on the answer above.
+- **Rescheduling history (RSC-2).** Should each attempt survive as its own
+  record? The prototype keeps only the latest state plus the original date, so a
+  drop that failed three times shows one move, not three. If the owner needs to
+  see a customer who is repeatedly unreachable, this has to change.
+- **Giving up (RSC-3).** Is there a point where a repeatedly-failed delivery is
+  written off rather than moved again, and does the bread count as waste then?
+- **Part deliveries (RSC-4).** If 45 of 60 loaves were taken, is the remaining 15
+  a delivery to redeliver, or gone? The prototype deliberately leaves part
+  deliveries out of "needs attention" rather than assume.
+- **Cost granularity (CST-3).** Gas, ingredients, and transport as daily lump sums, or
   allocated per batch for profit-per-loaf? Does profit include wages?
-- **Phone OTP budget.** Supabase phone auth needs an SMS provider billed per
-  message in Ghana. Is there a budget, or should admin use email + password?
-- **Owner-entered orders.** Confirming the assumption that admin can create an
-  order for a customer who phones in and never installs the app.
-- **Tax.** Do receipts and invoices need Ghana VAT and levies, or is this
+- **Stock on hand (INV-1).** The system records what was bought, not what is
+  left. Knowing the remaining stock means recording how much of each supply goes
+  into a bake, which nobody does today. Does the owner want that, or is purchase
+  history enough? Real stock tracking is a much larger feature and would need her
+  to weigh bread against ingredients every day.
+- **Supply catalogue (INV-2).** Items are a fixed list (flour, yeast, butter,
+  sugar, salt, gas). Does the owner need to add her own, and should buying
+  something new create the item on the fly?
+- **Price changes (INV-3).** Purchases record the price paid each time, so a
+  supplier's price rising is visible in the history. Does she want to be warned
+  when a price moves, and by how much?
+- **Phone OTP budget (AUTH-3).** Supabase phone auth needs an SMS provider billed
+  per message in Ghana. Is there a budget, or should admin use email + password?
+- **Owner-entered orders (ORD-11).** Confirming the assumption that admin can
+  create an order for a customer who phones in and never installs the app.
+- **Tax (TAX-1).** Do receipts and invoices need Ghana VAT and levies, or is this
   informal for v1?
 
 Working defaults unless told otherwise: English only, dates `DD/MM/YYYY`,
@@ -50,6 +89,157 @@ Africa/Accra is UTC+0 with no daylight saving, business day is midnight to
 midnight local.
 
 ---
+
+## 0014 — Reports draw their own SVG; Recharts is deferred
+
+**Date:** 2026-07-28 · **Status:** Proposed
+
+The reports page renders its charts as plain SVG from a server component
+(`apps/admin/components/charts.tsx`). CLAUDE.md names Recharts as the intended
+charting library and this does not use it.
+
+Two forms are needed today — paired columns for money in against money out, and
+ranked horizontal bars — both static, both readable on the server with no
+client bundle at all. Recharts would add a dependency and push those pages into
+client components to draw pictures that do not move.
+
+**This is a deferral, not a rejection.** The moment the owner wants to hover for
+a breakdown, brush a date range, or toggle a series, hand-rolled SVG stops being
+the cheap option and Recharts should replace these two components. The rest of
+the page does not change: the report itself is computed in
+`packages/shared/src/reports.ts` and knows nothing about how it is drawn.
+
+The two series colours are checked for colour-blind separation rather than
+chosen by eye (ΔE 24.7 under protanopia against white, where 8 is the floor).
+Every value in the chart is also in the table underneath it, so nothing is
+readable only by colour or only on hover.
+
+## 0013 — A payment a customer reports is a claim until the owner confirms it
+
+**Date:** 2026-07-28 · **Status:** Proposed
+
+The buyer app will let a customer tap to say they have paid. That arrives as a
+`Payment` with `source: "app"` and no `confirmedAt`, appears on the owner's
+payments screen under "customers say they have paid", and **counts for nothing**
+— not against their balance, not in the day's takings, not in a report — until
+she presses "Yes, it arrived".
+
+A customer's word is information, not money. The alternative, letting a tap
+reduce a balance, means anyone can clear their own debt from their phone. The
+cost is a step of work for her per claim; that step is the whole point.
+
+The buyer app does not exist yet. What exists is the seam it will arrive
+through: `paymentClaimSchema` in `packages/shared`, `recordPaymentClaim()` in
+the admin payment service, and one seeded example so the confirm flow is
+visible. Nothing calls it.
+
+**Also decided here:** a payment can be tied to one order, or left on the
+account. One tied to an order pays that order first; anything left over, and any
+untied lump sum, settles the oldest unpaid delivery first. That ordering is
+PAY-7 and is unconfirmed — it only ever changes which delivery is shown as
+settled, never the total.
+
+## 0012 — An order is owed once it has been delivered
+
+**Date:** 2026-07-28 · **Status:** Proposed
+
+A customer's balance counts bread that has actually reached them. An order
+scheduled for tomorrow is *expected*, not *owed*, and shows separately as
+"coming up". Before this, the balance counted every non-cancelled order, so a
+customer appeared to owe money for bread that had not been baked.
+
+Revenue in reports uses the same rule, on the same day, so "earned" and "owed"
+can never disagree.
+
+**The provisional part:** a part delivery is owed for what actually arrived —
+45 of 60 loaves is billed as 45. Whether a short drop reduces what the customer
+owes is open (DST-7), and this is a guess at it. It errs toward not charging for
+bread nobody received, because that is the less damaging way to be wrong with a
+customer standing in front of you. A failed delivery is owed nothing at all;
+when it is rescheduled, the same order becomes owed on the day it lands.
+
+All of it lives in `orderAmountDuePesewas` in `packages/shared/src/payments.ts`.
+If the owner says a short drop is still charged in full, that function is the
+only thing that changes.
+
+## 0011 — Open questions carry stable identifiers
+
+**Date:** 2026-07-28 · **Status:** Proposed
+
+The code and both subagents cite open questions by identifier — `ORD-3` in
+`types.ts`, `DST-7` in `orders.ts`, `PAY-3` on the customers screen, and a fixed
+list inside `.claude/agents/spec-guard.md`. Until today the Open questions
+section above carried no identifiers at all, so none of those references
+resolved to anything. They are now labelled, matching the identifiers already in
+use. `PRD-5` and `ORD-12` are new (see 0010).
+
+Nothing was reworded, only labelled. Add an identifier when you add a question.
+
+## 0010 — Orders stay one bread type each, for now
+
+**Date:** 2026-07-26 · **Status:** Proposed · **Backfilled 2026-07-28**
+
+Commit `7f0e0ad` made an order carry several bread types: quantities per line
+across the order form, the delivery screen and customer history, `Delivery`
+losing its single `deliveredQuantity` in favour of per-line amounts, and the
+product list replaced with sugar, butter, mixfruit and brown. It was reverted the
+same evening in `d0630ad`. The code is back to one bread type per order, one
+total quantity per delivery, and the fabricated sugar / tea / butter list.
+
+**The reason for the revert was never written down.** This entry records what
+happened, not why — whoever reverted it should say, because the same work will
+otherwise be rebuilt and reverted again.
+
+Two things surfaced in that commit and were lost with it, and both are now open
+questions above rather than sitting only in a reverted diff:
+
+- The commit stated the real bread types are **sugar, butter, mixfruit and
+  brown**, not the prototype's sugar / tea / butter. If that came from the owner
+  it is business fact and the prototype is wrong today (PRD-5).
+- Whether one order routinely carries several types, and whether a short drop
+  needs to record which bread was short, is undecided (ORD-12). It interacts with
+  DST-7: attributing a shortfall only matters if a shortfall changes what is owed.
+
+The same revert also stopped tracking `.claude/settings.local.json`, which is
+per-machine Claude Code permissions committed by mistake, and added it to
+`.gitignore` so it cannot conflict between teammates.
+
+## 0009 — The admin prototype has no authentication
+
+**Date:** 2026-07-25 · **Status:** Accepted
+
+The skeleton has no login and no session. Every screen and every server action is
+open to anyone who can reach the server.
+
+This is acceptable only because the app holds nothing but fabricated sample data
+and runs on one laptop. It stops being acceptable the moment a real customer name
+or a real cheque number is entered.
+
+**Before this touches real data:** admin authentication, and an authorization
+check inside every server action. Server actions are reachable by direct POST,
+not only through the UI, so guarding the screens alone would not be enough.
+
+## 0008 — The prototype runs on in-memory mock data behind a service layer
+
+**Date:** 2026-07-25 · **Status:** Accepted
+
+Screens read and write through service modules in `apps/admin/services/`
+(`listCustomers()`, `createOrder()`, `recordDelivery()`, …). Those services are
+backed by an in-memory store seeded with fabricated bakery data. Nothing touches
+Supabase yet.
+
+The schema is blocked on four business questions (ORD-3, PAY-3, PAY-6, PRD-4),
+and those questions change table shapes, not just column values. Building the UI
+against a schema we would then have to rewrite is wasted work; building it
+against a service layer is not, because the seam survives.
+
+When the questions are answered, the service function bodies get reimplemented
+against Supabase and the screens do not change. `apps/admin/services/store.ts` is
+deleted at that point.
+
+**Tradeoff:** the prototype's data resets whenever the dev server restarts, and
+nothing exercises row-level security yet. Both are fine for something whose only
+job is to show the owner the shape of the app and provoke corrections.
 
 ## 0007 — Decision-log entries go through pull requests, never straight to `main`
 
@@ -103,7 +293,7 @@ screens — wholesale confirms a monthly quantity and views a delivery schedule,
 retail orders for a date and pays now. Two codebases would double the build and
 release burden for that.
 
-When the buyer app is built, ship **wholesale first**: smaller surface, Barcelona
+When the buyer app is built, ship **wholesale first**: smaller surface, Baatsonaa
 Total is an obvious pilot customer, and it validates offline sync and OTP auth
 with one cooperative user rather than a crowd.
 
