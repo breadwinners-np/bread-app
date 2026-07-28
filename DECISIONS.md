@@ -90,6 +90,73 @@ midnight local.
 
 ---
 
+## 0015 — The admin app is shaped around the owner, not around the data
+
+**Date:** 2026-07-28 · **Status:** Proposed
+
+The prototype was already large-buttoned and light-only. This goes further, on
+the grounds that the only person who will ever use this screen is around fifty,
+not technical, and will be reading it at speed early in the morning.
+
+**Navigation is grouped and renamed.** Eight flat sidebar items became seven
+under three headings — *Each day*, *Money*, *Records* — each with a line of
+plain English under it. Labels say what she gets rather than what the table is
+called: "Money in" rather than "Payments", "Money out" rather than "Inventory".
+
+**Inventory and Costs merged into one screen at `/spending`.** They were two
+destinations for one question — what did I spend? — and one of them carried a
+permanent "soon" badge in the sidebar, which reads as broken software. The old
+paths redirect; the redirects can be dropped once nobody is used to them.
+
+**Consequential actions ask first, ordinary ones do not.** "Could not deliver",
+recording a part delivery, and saying a customer's reported payment never
+arrived now open a panel that states the consequence in her words and asks. The
+delivery round's ordinary outcome — delivered in full — stays one click, because
+she does it dozens of times a morning and a confirmation there would be a tax on
+the common path rather than a safety net. Submits also disable while saving, so
+an impatient second click cannot double-record.
+
+**Part deliveries no longer default to the full amount.** The quantity box sat
+pre-filled with everything ordered, next to a "Part delivered" button; pressing
+it without editing recorded a "partial" delivery of the whole order. The box is
+now empty, required, and capped below the ordered amount.
+
+**The open questions on each screen are now addressed to her.** Every screen
+used to end in an amber box citing identifiers — "still an open question
+(DST-6)". The uncertainty is real and worth showing her, since the prototype
+exists partly to provoke these answers, but she should meet it as a question she
+can answer rather than as engineering shorthand. The identifiers stay in this
+file, which is where a teammate looks them up.
+
+**Accessibility lives in one place, not in every component.** The first attempt
+at this scaled almost every element up — `text-lg` and `text-xl` everywhere,
+2px borders, saturated fills — on the reasoning that a fifty-year-old needs
+things big. The result was crowded and read as a student project: when
+everything is emphasised, nothing is, and the hierarchy that actually helps her
+find the number she wants disappears.
+
+What replaced it: the base font is 18px in `globals.css`, so everything measured
+in rem follows from one line, and components stay at `text-base` unless they are
+a heading or a headline number. Secondary text is stone-600 (7:1 on white) or
+stone-500 (4.6:1) by role rather than bolded. The primary button is near-black
+(16:1) rather than a saturated amber (3.1:1), which is both quieter and far more
+legible; amber survives as the focus ring, where it has to contrast against that
+near-black button. Stat tiles lost their boxes — four bordered rectangles in a
+row, and space separates them just as well. No number is described by colour
+alone: a red balance always has "they owe you" written beside it.
+
+**The charts were left alone.** Their two series colours were revalidated
+(ΔE 24.7 protanopia, 33.6 normal vision, all six checks pass) and kept. Only the
+chrome around them — legend, caption, grid — was quietened. A validated palette
+is not something to restyle for taste.
+
+**Tradeoff:** the confirmation panels are client components, so this part of the
+delivery screen no longer works with JavaScript disabled. That was already true
+of every form on the site via `useActionState`, and the app runs on one laptop,
+so the cost is theoretical. The larger cost is that none of this has been in
+front of the owner yet — it is a considered guess at what she needs, and the
+first session watching her use it should be treated as the real test.
+
 ## 0014 — Reports draw their own SVG; Recharts is deferred
 
 **Date:** 2026-07-28 · **Status:** Proposed

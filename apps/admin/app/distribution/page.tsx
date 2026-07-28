@@ -7,18 +7,21 @@ import {
   deliveryProgress,
   formatDate,
   formatLongDate,
+  isValidIsoDate,
   relativeDayLabel,
   todayIso,
 } from "@bread/shared";
 
 import { recordDeliveryAction, rescheduleDeliveryAction } from "@/app/actions";
+import { ConfirmButton, GuardedSubmit } from "@/components/confirm-button";
 import {
   Badge,
   ButtonLink,
   Card,
   EmptyState,
+  HowThisWorks,
   PageHeader,
-  buttonClass,
+  QuestionForYou,
   inputClass,
 } from "@/components/ui";
 import {
@@ -35,7 +38,9 @@ export default async function DistributionPage({
 }) {
   const { date, view } = await searchParams;
   const today = todayIso();
-  const activeDate = date ?? today;
+  // A typed or stale ?date= is not trusted: anything that is not a real day
+  // falls back to today, so a bad link shows her the round rather than an error.
+  const activeDate = date && isValidIsoDate(date) ? date : today;
   const showOutstanding = view === "outstanding";
 
   const outstanding = await listOutstandingDeliveries();
@@ -46,19 +51,19 @@ export default async function DistributionPage({
         title="Deliveries"
         subtitle={
           showOutstanding
-            ? "Deliveries that failed or were never recorded"
+            ? "Bread that never reached the customer"
             : `${relativeDayLabel(activeDate, today) ? `${relativeDayLabel(activeDate, today)} — ` : ""}${formatLongDate(activeDate)}`
         }
       />
 
-      <div className="mb-6 flex gap-2 border-b border-stone-200">
+      <div className="mb-8 flex flex-wrap gap-6 border-b border-stone-200">
         <Tab href="/distribution" active={!showOutstanding}>
-          The daily round
+          The day&apos;s round
         </Tab>
         <Tab href="/distribution?view=outstanding" active={showOutstanding}>
-          Needs attention
+          Needs sorting out
           {outstanding.length > 0 && (
-            <span className="ml-2 rounded-full bg-red-600 px-2 py-0.5 text-sm font-bold text-white">
+            <span className="ml-2 rounded-md bg-red-50 px-2 py-0.5 text-sm font-medium text-red-800">
               {outstanding.length}
             </span>
           )}
@@ -86,11 +91,12 @@ function Tab({
   return (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={[
-        "-mb-px flex items-center border-b-2 px-4 py-3 text-lg font-semibold transition-colors",
+        "-mb-px flex items-center border-b-2 pb-3 font-medium transition-colors",
         active
-          ? "border-amber-600 text-amber-900"
-          : "border-transparent text-stone-500 hover:text-stone-800",
+          ? "border-stone-900 text-stone-900"
+          : "border-transparent text-stone-500 hover:text-stone-900",
       ].join(" ")}
     >
       {children}
@@ -110,15 +116,15 @@ async function DayView({
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+      <div className="mb-6 flex flex-wrap items-center gap-2">
         <ButtonLink
           href={`/distribution?date=${addDays(activeDate, -1)}`}
           variant="secondary"
         >
-          ← Previous day
+          ← The day before
         </ButtonLink>
         {activeDate !== today && (
-          <ButtonLink href="/distribution" variant="quiet">
+          <ButtonLink href="/distribution" variant="secondary">
             Back to today
           </ButtonLink>
         )}
@@ -126,114 +132,160 @@ async function DayView({
           href={`/distribution?date=${addDays(activeDate, 1)}`}
           variant="secondary"
         >
-          Next day →
+          The next day →
         </ButtonLink>
 
-        <p className="ml-auto text-lg font-semibold text-stone-700">
+        <p className="ml-auto font-medium text-stone-700">
           {progress.done} of {progress.total} done
         </p>
       </div>
 
       {deliveries.length === 0 ? (
         <EmptyState
-          title="No deliveries for this day"
-          description="Add an order for this date and it will show up here."
+          title="No bread to deliver on this day"
+          description="Add an order for this day and it will show up here."
         />
       ) : (
-        <div className="space-y-4">
-          {deliveries.map((item) => (
-            <Card key={item.delivery.id}>
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xl font-bold text-stone-900">
-                    {item.customer.name}
-                  </p>
-                  <p className="text-lg text-stone-600">
-                    {item.orderedQuantity} × {item.productName}
-                  </p>
-                  <p className="text-stone-500">
-                    {item.customer.area} · {item.customer.phone}
-                  </p>
-                  {item.order.rescheduledFrom && (
-                    <p className="mt-1 text-sm font-medium text-amber-800">
-                      Moved from {formatDate(item.order.rescheduledFrom)}
+        <div className="space-y-3">
+          {deliveries.map((item) => {
+            const recorded = item.delivery.status !== "pending";
+
+            return (
+              <Card key={item.delivery.id}>
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-semibold text-stone-900">
+                      {item.customer.name}
                     </p>
-                  )}
+                    <p className="text-stone-700">
+                      {item.orderedQuantity} × {item.productName}
+                    </p>
+                    <p className="text-sm text-stone-500">
+                      {item.customer.area} · {item.customer.phone}
+                    </p>
+                    {item.order.rescheduledFrom && (
+                      <p className="mt-1 text-sm text-amber-700">
+                        Moved here from {formatDate(item.order.rescheduledFrom)}
+                      </p>
+                    )}
+                  </div>
+
+                  <Badge tone={deliveryTone(item.delivery.status)}>
+                    {item.delivery.status === "partial"
+                      ? `${DELIVERY_STATUS_LABELS.partial} — ${item.delivery.deliveredQuantity} of ${item.orderedQuantity}`
+                      : DELIVERY_STATUS_LABELS[item.delivery.status]}
+                  </Badge>
                 </div>
 
-                <Badge tone={deliveryTone(item.delivery.status)}>
-                  {item.delivery.status === "partial"
-                    ? `${DELIVERY_STATUS_LABELS.partial} — ${item.delivery.deliveredQuantity} of ${item.orderedQuantity}`
-                    : DELIVERY_STATUS_LABELS[item.delivery.status]}
-                </Badge>
-              </div>
+                {item.delivery.note && (
+                  <p className="mb-4 border-l-2 border-stone-200 pl-4 text-stone-600">
+                    {item.delivery.note}
+                  </p>
+                )}
 
-              {item.delivery.note && (
-                <p className="mb-4 rounded-xl bg-stone-50 px-4 py-3 text-stone-600">
-                  {item.delivery.note}
-                </p>
-              )}
+                {recorded && (
+                  <p className="mb-4 text-sm text-stone-500">
+                    Already recorded. You can change it below if it was wrong.
+                  </p>
+                )}
 
-              <form action={recordDeliveryAction} className="flex flex-wrap gap-3">
-                <input type="hidden" name="orderId" value={item.order.id} />
-                <input
-                  type="hidden"
-                  name="orderedQuantity"
-                  value={item.orderedQuantity}
-                />
-
-                <button
-                  type="submit"
-                  name="status"
-                  value="delivered"
-                  className={buttonClass("primary")}
+                {/*
+                  One form, three ways out of it. "Delivered in full" is the
+                  answer nearly every time and stays a single click; the other
+                  two ask first, because both are easy to press by accident and
+                  both change what the customer owes.
+                */}
+                <form
+                  action={recordDeliveryAction}
+                  className="flex flex-wrap items-start gap-2"
                 >
-                  Delivered in full
-                </button>
-
-                <div className="flex items-center gap-2">
-                  <label htmlFor={`qty-${item.delivery.id}`} className="sr-only">
-                    Quantity delivered to {item.customer.name}
-                  </label>
+                  <input type="hidden" name="orderId" value={item.order.id} />
                   <input
-                    id={`qty-${item.delivery.id}`}
-                    type="number"
-                    name="deliveredQuantity"
-                    min={0}
-                    max={item.orderedQuantity}
-                    defaultValue={item.orderedQuantity}
-                    className={`${inputClass} w-28`}
+                    type="hidden"
+                    name="orderedQuantity"
+                    value={item.orderedQuantity}
                   />
-                  <button
-                    type="submit"
-                    name="status"
-                    value="partial"
-                    className={buttonClass("secondary")}
-                  >
-                    Part delivered
-                  </button>
-                </div>
 
-                <button
-                  type="submit"
-                  name="status"
-                  value="not_delivered"
-                  className={buttonClass("quiet")}
-                >
-                  Could not deliver
-                </button>
-              </form>
-            </Card>
-          ))}
+                  <GuardedSubmit
+                    name="status"
+                    value="delivered"
+                    variant="primary"
+                    label={`Delivered all ${item.orderedQuantity}`}
+                  />
+
+                  {/*
+                    Hidden when only one was ordered — "some of one loaf" is not
+                    a thing she can record.
+                  */}
+                  {item.orderedQuantity > 1 && (
+                    <ConfirmButton
+                      label="Only some of it"
+                      variant="secondary"
+                      question={`How many did ${item.customer.name} actually take?`}
+                      confirmLabel="Save what they took"
+                      name="status"
+                      value="partial"
+                    >
+                      <label
+                        htmlFor={`qty-${item.delivery.id}`}
+                        className="block font-medium text-stone-900"
+                      >
+                        Number of {item.productName} delivered
+                      </label>
+                      <input
+                        id={`qty-${item.delivery.id}`}
+                        type="number"
+                        name="deliveredQuantity"
+                        min={1}
+                        max={item.orderedQuantity - 1}
+                        required
+                        placeholder={`Fewer than ${item.orderedQuantity}`}
+                        className={`${inputClass} mt-2 max-w-64`}
+                      />
+                      <p className="mt-2 text-sm text-stone-600">
+                        They will only be charged for what you enter here.
+                      </p>
+                    </ConfirmButton>
+                  )}
+
+                  <ConfirmButton
+                    label="Could not deliver"
+                    variant="danger"
+                    confirmVariant="danger"
+                    question={`Record that ${item.customer.name} got no bread at all today?`}
+                    confirmLabel="Yes, they got nothing"
+                    name="status"
+                    value="not_delivered"
+                  >
+                    <p className="text-stone-600">
+                      They will not be charged for it, and it moves to{" "}
+                      <span className="font-medium text-stone-800">
+                        Needs sorting out
+                      </span>{" "}
+                      so you can give them a new day.
+                    </p>
+                  </ConfirmButton>
+                </form>
+              </Card>
+            );
+          })}
         </div>
       )}
 
-      <p className="mt-8 rounded-xl bg-amber-50 px-5 py-4 text-amber-900">
-        <strong className="font-semibold">Not built yet:</strong> this round runs
-        on the laptop only. Recording deliveries on the road, offline, is the
-        mobile app&apos;s job — and which device the driver carries is still an
-        open question (DST-6).
-      </p>
+      <QuestionForYou>
+        <p>
+          Right now bread can only be marked delivered here, on the laptop. Out
+          on the road there is often no signal, and this screen needs one.
+        </p>
+        <p>
+          <strong className="font-semibold text-stone-900">
+            Who should mark the bread delivered while it is being dropped off —
+            you, or whoever is driving?
+          </strong>{" "}
+          The answer changes how the phone app gets built, so it is worth
+          settling before we start.
+        </p>
+      </QuestionForYou>
     </>
   );
 }
@@ -248,34 +300,34 @@ function OutstandingView({
   if (items.length === 0) {
     return (
       <EmptyState
-        title="Nothing outstanding"
-        description="Every delivery has been recorded. Failed and missed deliveries show up here."
+        title="Nothing to sort out"
+        description="Every delivery has been recorded. Bread that could not be delivered, or a day nobody filled in, shows up here."
       />
     );
   }
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-3">
         {items.map((item) => (
-          <Card key={item.delivery.id} className="border-l-4 border-l-red-500">
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <Card key={item.delivery.id} className="border-l-4 border-l-red-600">
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-xl font-bold text-stone-900">
+                <p className="text-lg font-semibold text-stone-900">
                   {item.customer.name}
                 </p>
-                <p className="text-lg text-stone-600">
+                <p className="text-stone-700">
                   {item.orderedQuantity} × {item.productName}
                 </p>
-                <p className="text-stone-500">
+                <p className="text-sm text-stone-500">
                   {item.customer.area} · {item.customer.phone}
                 </p>
-                <p className="mt-2 font-medium text-red-700">
-                  Due {formatDate(item.order.deliveryDate)} ·{" "}
+                <p className="mt-1.5 font-medium text-red-700">
+                  Was due {formatDate(item.order.deliveryDate)} —{" "}
                   {item.daysLate === 1 ? "1 day ago" : `${item.daysLate} days ago`}
                 </p>
                 {item.order.rescheduledFrom && (
-                  <p className="text-sm font-medium text-amber-800">
+                  <p className="text-sm text-amber-700">
                     Already moved once, from{" "}
                     {formatDate(item.order.rescheduledFrom)}
                   </p>
@@ -288,23 +340,23 @@ function OutstandingView({
             </div>
 
             {item.delivery.note && (
-              <p className="mb-4 rounded-xl bg-stone-50 px-4 py-3 text-stone-600">
+              <p className="mb-4 border-l-2 border-stone-200 pl-4 text-stone-600">
                 {item.delivery.note}
               </p>
             )}
 
-            <div className="flex flex-wrap items-end gap-6">
+            <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
               <form
                 action={rescheduleDeliveryAction}
-                className="flex flex-wrap items-end gap-3"
+                className="flex flex-wrap items-end gap-2"
               >
                 <input type="hidden" name="orderId" value={item.order.id} />
                 <div>
                   <label
                     htmlFor={`new-date-${item.delivery.id}`}
-                    className="mb-2 block text-base font-semibold text-stone-800"
+                    className="block font-medium text-stone-900"
                   >
-                    Deliver instead on
+                    Take it to them instead on
                   </label>
                   <input
                     id={`new-date-${item.delivery.id}`}
@@ -312,12 +364,10 @@ function OutstandingView({
                     name="newDate"
                     min={addDays(item.order.deliveryDate, 1)}
                     defaultValue={addDays(today, 1)}
-                    className={inputClass}
+                    className={`${inputClass} mt-2`}
                   />
                 </div>
-                <button type="submit" className={buttonClass("primary")}>
-                  Reschedule
-                </button>
+                <GuardedSubmit label="Move it to that day" variant="primary" />
               </form>
 
               <form action={recordDeliveryAction}>
@@ -327,28 +377,37 @@ function OutstandingView({
                   name="orderedQuantity"
                   value={item.orderedQuantity}
                 />
-                <button
-                  type="submit"
+                <ConfirmButton
+                  label="They did get it"
+                  variant="secondary"
+                  question={`Record that ${item.customer.name} received all ${item.orderedQuantity} after all?`}
+                  confirmLabel="Yes, they received it"
                   name="status"
                   value="delivered"
-                  className={buttonClass("secondary")}
                 >
-                  It was delivered
-                </button>
+                  <p className="text-stone-600">
+                    They will be charged for it, and it will leave this list.
+                  </p>
+                </ConfirmButton>
               </form>
             </div>
           </Card>
         ))}
       </div>
 
-      <p className="mt-8 rounded-xl bg-amber-50 px-5 py-4 text-amber-900">
-        <strong className="font-semibold">Two things are still undecided.</strong>{" "}
-        Rescheduling moves the order to the new day, so nothing is billed twice —
-        but whether an undelivered drop is owed at all is open (DST-7), and part
-        deliveries are not listed here because whether the shortfall gets
-        redelivered is the same open question. Customers requesting their own new
-        date comes with the mobile app.
-      </p>
+      <HowThisWorks>
+        <p>
+          Giving a failed delivery a new day{" "}
+          <strong className="font-semibold text-stone-900">moves</strong> it
+          rather than making a second one, so nobody is ever charged twice for
+          the same bread.
+        </p>
+        <p>
+          Bread that was only part delivered does not appear here, because we do
+          not yet know whether you would take the rest out later or count it as
+          gone. Tell us which, and it can go here too.
+        </p>
+      </HowThisWorks>
     </>
   );
 }

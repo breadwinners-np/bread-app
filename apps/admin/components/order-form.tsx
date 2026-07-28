@@ -76,7 +76,7 @@ export function OrderForm({
       </Field>
 
       {state.error && (
-        <p className="rounded-xl bg-red-50 px-4 py-3 text-red-800">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800">
           {state.error}
         </p>
       )}
@@ -90,5 +90,9 @@ export function OrderForm({
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <span className="mt-1 block text-sm text-red-700">{message}</span>;
+  return (
+    <span className="mt-1.5 block text-sm font-medium text-red-700">
+      {message}
+    </span>
+  );
 }

@@ -2,8 +2,11 @@
 
 /*
  * The primary user is around fifty and not technical, working on a laptop.
- * That drives three choices here: a larger base font than usual, light theme
- * only (no dark mode surprises), and generous default spacing.
+ *
+ * The accessibility work happens here, once, rather than by scaling up every
+ * component: an 18px base (everything measured in rem follows it), a light
+ * theme only, and a focus ring that is impossible to miss. That leaves the
+ * components free to be quiet — large where it matters, ordinary elsewhere.
  */
 
 :root {
@@ -11,17 +14,43 @@
 }
 
 html {
-  font-size: 17px;
+  font-size: 18px;
 }
 
 body {
   background-color: #fafaf9;
   color: #1c1917;
   -webkit-font-smoothing: antialiased;
+  line-height: 1.55;
 }
 
-/* Visible focus, because keyboard and mis-clicks both matter here. */
+/*
+ * Amber is the one warm accent left in the interface, and it earns its place
+ * here: the primary button is near-black, so a dark focus ring would vanish
+ * against it.
+ */
 :focus-visible {
-  outline: 3px solid #d97706;
+  outline: 2px solid #b45309;
   outline-offset: 2px;
+}
+
+/*
+ * Native date and number inputs size their controls to the browser default
+ * regardless of our font scale, leaving a spinner or calendar button too small
+ * to hit comfortably. Match them to the other controls.
+ */
+input[type="date"],
+input[type="number"] {
+  min-height: 3rem;
+}
+
+/* Respect a reduced-motion preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -19,7 +19,7 @@ export default async function NewOrderPage() {
         title="Add an order"
         subtitle="For orders that come in by phone or text"
         action={
-          <ButtonLink href="/orders" variant="quiet">
+          <ButtonLink href="/orders" variant="secondary">
             Cancel
           </ButtonLink>
         }

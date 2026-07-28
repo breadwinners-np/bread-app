@@ -22,8 +22,10 @@ import {
 } from "@/components/charts";
 import {
   Card,
+  HowThisWorks,
   PageHeader,
   SectionTitle,
+  StatRow,
   StatTile,
   buttonClass,
   inputClass,
@@ -71,10 +73,10 @@ export default async function ReportsPage({
 
       {/* One filter row above everything it scopes: every number and every
           chart on this page reads the same stretch of days. */}
-      <Card className="mb-8">
+      <Card className="mb-10">
         <div className="flex flex-wrap items-end gap-6">
           <div>
-            <p className="mb-2 text-base font-semibold text-stone-800">
+            <p className="mb-2 font-medium text-stone-900">
               Choose the days
             </p>
             <div className="flex flex-wrap gap-2">
@@ -99,7 +101,7 @@ export default async function ReportsPage({
             <div>
               <label
                 htmlFor="from"
-                className="mb-2 block text-base font-semibold text-stone-800"
+                className="mb-2 block font-medium text-stone-900"
               >
                 From
               </label>
@@ -115,7 +117,7 @@ export default async function ReportsPage({
             <div>
               <label
                 htmlFor="to"
-                className="mb-2 block text-base font-semibold text-stone-800"
+                className="mb-2 block font-medium text-stone-900"
               >
                 To
               </label>
@@ -135,7 +137,7 @@ export default async function ReportsPage({
         </div>
       </Card>
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatRow>
         <StatTile
           label="Money earned"
           value={formatGhs(report.revenuePesewas)}
@@ -156,25 +158,26 @@ export default async function ReportsPage({
           value={formatGhs(report.outstandingPesewas)}
           hint="From bread delivered in these days"
         />
-      </div>
+      </StatRow>
 
       {/* A chart of one column says nothing the tiles above have not already
           said, so a single day skips it. */}
       {columns.length > 1 && (
         <Card className="mb-8">
           <SectionTitle>Money in and out</SectionTitle>
+          <div className="mt-5" />
           <MoneyColumnsChart columns={columns} periodLabel={periodLabel} />
 
           {/* Every value in the chart is also readable as text, so nothing is
               locked behind a hover. */}
           <details className="mt-6">
-            <summary className="cursor-pointer font-semibold text-stone-700">
+            <summary className="cursor-pointer text-lg font-semibold text-stone-800 underline underline-offset-4">
               Show the numbers
             </summary>
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="border-b border-stone-200 text-stone-500">
+                  <tr className="border-b-2 border-stone-200 text-stone-700">
                     <th className="py-2 pr-4 font-medium">Day</th>
                     <th className="py-2 pr-4 text-right font-medium">Earned</th>
                     <th className="py-2 pr-4 text-right font-medium">Spent</th>
@@ -212,6 +215,7 @@ export default async function ReportsPage({
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
         <Card>
           <SectionTitle>Which bread sold</SectionTitle>
+          <div className="mt-5" />
           <RankedBarsChart
             bars={report.byProduct.map((entry) => ({
               key: entry.key,
@@ -227,6 +231,7 @@ export default async function ReportsPage({
 
         <Card>
           <SectionTitle>Where the money went</SectionTitle>
+          <div className="mt-5" />
           <RankedBarsChart
             bars={report.byCostCategory.map((entry) => ({
               key: entry.key,
@@ -241,6 +246,7 @@ export default async function ReportsPage({
 
       <Card className="mb-8">
         <SectionTitle>Who bought the most</SectionTitle>
+        <div className="mt-5" />
         <RankedBarsChart
           bars={report.byCustomer.slice(0, 8).map((entry) => ({
             key: entry.key,
@@ -251,9 +257,9 @@ export default async function ReportsPage({
         />
       </Card>
 
-      <Card className="mb-8 bg-amber-50">
+      <Card className="mb-8">
         <SectionTitle>In short</SectionTitle>
-        <p className="text-lg leading-relaxed text-stone-800">
+        <p className="mt-3 text-lg leading-relaxed text-stone-800">
           {summariseReport(report, formatGhs).join(" ")}
         </p>
         <p className="mt-4 text-stone-600">
@@ -266,15 +272,22 @@ export default async function ReportsPage({
         </p>
       </Card>
 
-      <p className="rounded-xl bg-amber-50 px-5 py-4 text-amber-900">
-        <strong className="font-semibold">What these numbers assume.</strong>{" "}
-        Bread counts as earned on the day it was delivered, and a delivery that
-        failed earns nothing (decision 0012). Costs count on the day they were
-        bought, which may be wrong if they should be spread across the days a
-        supply is used (CST-3), and &ldquo;left over&rdquo; does not subtract
-        wages. Cheques count from the day they were recorded, not the day they
-        clear (PAY-3). Export to Excel and PDF is not built yet.
-      </p>
+      <HowThisWorks>
+        <p>
+          Bread counts as earned{" "}
+          <strong className="font-semibold text-stone-900">on the day it reached someone</strong>
+          . A delivery that failed earns nothing.
+        </p>
+        <p>
+          Things you buy count on the day you bought them, and{" "}
+          <strong className="font-semibold text-stone-900">
+            &ldquo;left over&rdquo; does not take wages out
+          </strong>
+          . A cheque counts from the day you wrote it down, not the day the bank
+          pays it.
+        </p>
+        <p>Saving a report to Excel or printing it is not built yet.</p>
+      </HowThisWorks>
     </>
   );
 }

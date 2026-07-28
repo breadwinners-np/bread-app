@@ -12,10 +12,10 @@ export default async function NewPurchasePage() {
   return (
     <>
       <PageHeader
-        title="Record a purchase"
+        title="Record something you bought"
         subtitle="Flour, yeast, butter, sugar, salt, or gas"
         action={
-          <ButtonLink href="/inventory" variant="quiet">
+          <ButtonLink href="/spending" variant="secondary">
             Cancel
           </ButtonLink>
         }

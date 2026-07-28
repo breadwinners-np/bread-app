@@ -102,7 +102,15 @@ export async function recordDeliveryAction(formData: FormData): Promise<void> {
     return;
   }
 
-  await recordDelivery(parsed.data);
+  try {
+    await recordDelivery(parsed.data);
+  } catch (error) {
+    // The service rejects a quantity the order cannot support. Reaching this
+    // through the UI is not possible, so log it rather than build a screen for
+    // it — but never let it become an unhandled 500.
+    console.error("Could not record that delivery", error);
+    return;
+  }
 
   revalidatePath("/distribution");
   revalidatePath("/");
@@ -180,10 +188,9 @@ export async function createPurchaseAction(
   }
 
   await createPurchase(parsed.data);
-  revalidatePath("/inventory");
-  revalidatePath("/costs");
+  revalidatePath("/spending");
   revalidatePath("/");
-  redirect("/inventory");
+  redirect("/spending");
 }
 
 export async function rescheduleDeliveryAction(
