@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import {
   customerInputSchema,
   orderInputSchema,
+  paymentDecisionSchema,
+  paymentInputSchema,
   purchaseInputSchema,
   recordDeliverySchema,
   rescheduleDeliverySchema,
@@ -15,6 +17,7 @@ import { createCustomer } from "@/services/customers";
 import { recordDelivery, rescheduleDelivery } from "@/services/deliveries";
 import { createPurchase } from "@/services/inventory";
 import { createOrder } from "@/services/orders";
+import { createPayment, decidePayment } from "@/services/payments";
 
 /**
  * Server actions stay thin: parse with a shared schema, call a service, then
@@ -103,6 +106,59 @@ export async function recordDeliveryAction(formData: FormData): Promise<void> {
 
   revalidatePath("/distribution");
   revalidatePath("/");
+}
+
+export async function createPaymentAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = paymentInputSchema.safeParse({
+    customerId: formData.get("customerId"),
+    orderId: formData.get("orderId") || undefined,
+    amountCedis: formData.get("amountCedis"),
+    method: formData.get("method"),
+    reference: formData.get("reference") || undefined,
+    note: formData.get("note") || undefined,
+  });
+
+  if (!parsed.success) {
+    return { fieldErrors: fieldErrorsFrom(parsed.error) };
+  }
+
+  try {
+    await createPayment(parsed.data);
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not save that payment" };
+  }
+
+  revalidatePath("/payments");
+  revalidatePath("/customers");
+  revalidatePath("/reports");
+  redirect("/payments");
+}
+
+/** The owner agreeing, or not, that a payment a customer reported arrived. */
+export async function decidePaymentAction(formData: FormData): Promise<void> {
+  const parsed = paymentDecisionSchema.safeParse({
+    paymentId: formData.get("paymentId"),
+    decision: formData.get("decision"),
+  });
+
+  if (!parsed.success) {
+    console.error("Invalid payment decision", parsed.error.flatten());
+    return;
+  }
+
+  try {
+    await decidePayment(parsed.data);
+  } catch (error) {
+    console.error("Could not record that decision", error);
+    return;
+  }
+
+  revalidatePath("/payments");
+  revalidatePath("/customers");
+  revalidatePath("/reports");
 }
 
 export async function createPurchaseAction(

@@ -58,13 +58,54 @@ export type RescheduleDeliveryInput = z.infer<typeof rescheduleDeliverySchema>;
 
 export const paymentInputSchema = z.object({
   customerId: z.string().min(1, "Choose a customer"),
+  /**
+   * The order this payment settles. Left empty for a lump sum on the account,
+   * such as a monthly cheque covering many days of bread.
+   */
+  orderId: z.string().trim().optional(),
   /** Entered by the user in cedis, converted to pesewas before storage. */
+  amountCedis: z.coerce.number().positive("Enter an amount above zero"),
+  method: z.enum(["cash", "cheque", "mobile_money"]),
+  reference: z.string().trim().optional(),
+  note: z.string().trim().optional(),
+});
+
+export type PaymentInput = z.infer<typeof paymentInputSchema>;
+
+/**
+ * A customer reporting from their phone that they have paid.
+ *
+ * NOT BUILT YET — the buyer app does not exist. This schema is here so that
+ * when it does, the phone and the laptop validate the same shape with the same
+ * code. It deliberately has no `confirmedAt`: a customer cannot confirm their
+ * own payment, only report it (decision 0013).
+ */
+export const paymentClaimSchema = z.object({
+  customerId: z.string().min(1),
+  orderId: z.string().trim().optional(),
   amountCedis: z.coerce.number().positive("Enter an amount above zero"),
   method: z.enum(["cash", "cheque", "mobile_money"]),
   reference: z.string().trim().optional(),
 });
 
-export type PaymentInput = z.infer<typeof paymentInputSchema>;
+export type PaymentClaimInput = z.infer<typeof paymentClaimSchema>;
+
+/** The owner ruling on a payment a customer reported. */
+export const paymentDecisionSchema = z.object({
+  paymentId: z.string().min(1),
+  decision: z.enum(["confirm", "reject"]),
+});
+
+export type PaymentDecisionInput = z.infer<typeof paymentDecisionSchema>;
+
+export const reportRangeSchema = z
+  .object({ from: isoDate, to: isoDate })
+  .refine((range) => range.from <= range.to, {
+    message: "The first day must come before the last day",
+    path: ["to"],
+  });
+
+export type ReportRangeInput = z.infer<typeof reportRangeSchema>;
 
 export const purchaseInputSchema = z.object({
   itemId: z.string().min(1, "Choose what you bought"),

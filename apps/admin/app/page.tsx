@@ -24,6 +24,7 @@ import {
   listOutstandingDeliveries,
 } from "@/services/deliveries";
 import { listOrdersForDate } from "@/services/orders";
+import { listPaymentsAwaitingConfirmation } from "@/services/payments";
 
 // Reads mutable data and "today", so it must never be prerendered at build time.
 export const dynamic = "force-dynamic";
@@ -31,12 +32,14 @@ export const dynamic = "force-dynamic";
 export default async function TodayPage() {
   const today = todayIso();
 
-  const [orders, deliveries, costsToday, outstanding] = await Promise.all([
-    listOrdersForDate(today),
-    listDeliveriesForDate(today),
-    totalCostsForDate(today),
-    listOutstandingDeliveries(),
-  ]);
+  const [orders, deliveries, costsToday, outstanding, pendingPayments] =
+    await Promise.all([
+      listOrdersForDate(today),
+      listDeliveriesForDate(today),
+      totalCostsForDate(today),
+      listOutstandingDeliveries(),
+      listPaymentsAwaitingConfirmation(),
+    ]);
 
   const loavesToday = orders.reduce((total, entry) => total + entry.quantity, 0);
   const revenueToday = ordersTotalPesewas(orders.map((entry) => entry.order));
@@ -67,6 +70,25 @@ export default async function TodayPage() {
             </p>
           </div>
           <span className="font-semibold text-red-900">Sort them out →</span>
+        </Link>
+      )}
+
+      {pendingPayments.length > 0 && (
+        <Link
+          href="/payments"
+          className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-l-4 border-l-amber-500 bg-amber-50 px-6 py-5 hover:bg-amber-100"
+        >
+          <div>
+            <p className="text-lg font-bold text-amber-900">
+              {pendingPayments.length === 1
+                ? "1 customer says they have paid"
+                : `${pendingPayments.length} customers say they have paid`}
+            </p>
+            <p className="text-amber-800">
+              It does not count against what they owe until you confirm it.
+            </p>
+          </div>
+          <span className="font-semibold text-amber-900">Have a look →</span>
         </Link>
       )}
 

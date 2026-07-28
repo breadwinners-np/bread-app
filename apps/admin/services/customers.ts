@@ -4,7 +4,7 @@
  */
 
 import {
-  customerBalancePesewas,
+  customerAccount,
   type Customer,
   type CustomerInput,
 } from "@bread/shared";
@@ -12,7 +12,12 @@ import {
 import { getStore, newId, simulateLatency } from "./store";
 
 export interface CustomerSummary extends Customer {
+  /** Delivered but unpaid. Positive means the customer owes money. */
   balancePesewas: number;
+  /** Ordered but not delivered yet, so not owed yet (decision 0012). */
+  notYetDuePesewas: number;
+  /** Reported from their phone, waiting for the owner to confirm it. */
+  awaitingConfirmationPesewas: number;
   orderCount: number;
 }
 
@@ -58,9 +63,13 @@ function withSummary(customer: Customer): CustomerSummary {
     (payment) => payment.customerId === customer.id,
   );
 
+  const account = customerAccount(orders, store.deliveries, payments);
+
   return {
     ...customer,
-    balancePesewas: customerBalancePesewas(orders, payments),
+    balancePesewas: account.balancePesewas,
+    notYetDuePesewas: account.notYetDuePesewas,
+    awaitingConfirmationPesewas: account.awaitingConfirmationPesewas,
     orderCount: orders.length,
   };
 }

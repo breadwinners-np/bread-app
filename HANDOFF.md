@@ -94,8 +94,16 @@ http://localhost:3000.
 **What works:** the daily delivery round (mark delivered in full, part
 delivered with a quantity, or could not deliver — the dashboard updates),
 customer list with balances, customer detail with order and payment history,
-order list, and forms to add a customer and an order. Payments, Costs, and
-Reports are deliberate placeholders that name the open questions blocking them.
+order list, forms to add a customer and an order, inventory purchases, payments
+recorded against a customer's deliveries, and reports over a chosen stretch of
+days. Recording a cost with no countable item is still a placeholder naming the
+open questions blocking it.
+
+**Money rules added 2026-07-28** (decisions 0012–0014): an order is owed once it
+has been delivered, a part delivery is owed for what arrived, and a payment a
+customer reports from their phone counts for nothing until the owner confirms
+it. The buyer app's payment claim has a schema and a service function but
+nothing calls them yet.
 
 **What does not exist yet:**
 

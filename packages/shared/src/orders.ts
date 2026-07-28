@@ -7,13 +7,7 @@
  */
 
 import { sumPesewas } from "./money";
-import type {
-  Delivery,
-  DeliveryStatus,
-  Order,
-  OrderStatus,
-  Payment,
-} from "./types";
+import type { Delivery, DeliveryStatus, Order, OrderStatus } from "./types";
 
 /** What an order line is worth, in pesewas. */
 export function lineTotalPesewas(line: {
@@ -98,23 +92,6 @@ export function outstandingReason(
 }
 
 /**
- * A customer's outstanding balance, in pesewas: what they have been billed
- * less what they have paid. Positive means the customer owes money.
- *
- * OPEN (PAY-3): this counts every recorded payment, including cheques that may
- * not have cleared. Once the cheque lifecycle is decided, this should filter on
- * payment status.
- *
- * OPEN (PAY-6): nothing here prevents a negative balance, because whether a
- * customer may go into credit — and by how much — is not yet decided.
+ * Balances live in `payments.ts`, because what a customer owes now depends on
+ * how the delivery went, not only on what was ordered (decision 0012).
  */
-export function customerBalancePesewas(
-  orders: readonly Order[],
-  payments: readonly Payment[],
-): number {
-  const billed = ordersTotalPesewas(
-    orders.filter((order) => order.status !== "cancelled"),
-  );
-  const paid = sumPesewas(payments.map((payment) => payment.amountPesewas));
-  return billed - paid;
-}

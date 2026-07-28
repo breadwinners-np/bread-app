@@ -6,12 +6,14 @@
  */
 
 import type { OutstandingReason } from "./orders";
+import type { OrderPaymentState } from "./payments";
 import type {
   CostCategory,
   CustomerType,
   DeliveryStatus,
   OrderStatus,
   PaymentMethod,
+  PaymentSource,
 } from "./types";
 
 export const CUSTOMER_TYPE_LABELS: Record<CustomerType, string> = {
@@ -54,6 +56,18 @@ export const PAYMENT_METHOD_OPTIONS: readonly PaymentMethod[] = [
   "cheque",
   "mobile_money",
 ];
+
+export const PAYMENT_SOURCE_LABELS: Record<PaymentSource, string> = {
+  admin: "You recorded it",
+  app: "Customer said they paid",
+};
+
+export const ORDER_PAYMENT_STATE_LABELS: Record<OrderPaymentState, string> = {
+  not_due: "Not delivered yet",
+  unpaid: "Not paid",
+  part_paid: "Part paid",
+  paid: "Paid",
+};
 
 export const COST_CATEGORY_LABELS: Record<CostCategory, string> = {
   gas: "Gas and fuel",

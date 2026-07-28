@@ -67,11 +67,21 @@ export default async function CustomersPage() {
                           : "text-stone-500"
                       }`}
                     >
-                      {formatGhs(customer.balancePesewas)}
+                      {formatGhs(Math.abs(customer.balancePesewas))}
                     </p>
                     <p className="text-sm text-stone-500">
-                      {customer.balancePesewas > 0 ? "owed to you" : "settled"}
+                      {customer.balancePesewas > 0
+                        ? "owed to you"
+                        : customer.balancePesewas < 0
+                          ? "in credit"
+                          : "settled"}
                     </p>
+                    {customer.awaitingConfirmationPesewas > 0 && (
+                      <p className="text-sm font-medium text-amber-800">
+                        Says they paid{" "}
+                        {formatGhs(customer.awaitingConfirmationPesewas)}
+                      </p>
+                    )}
                   </div>
                 </Link>
               </li>
@@ -81,9 +91,11 @@ export default async function CustomersPage() {
       )}
 
       <p className="mt-6 rounded-xl bg-amber-50 px-5 py-4 text-amber-900">
-        <strong className="font-semibold">Balances are provisional.</strong> They
-        count every recorded payment, including cheques that may not have
-        cleared, because the cheque lifecycle is still an open question (PAY-3).
+        <strong className="font-semibold">Balances count delivered bread
+        only.</strong>{" "}
+        An order that has not been delivered is not owed yet (decision 0012).
+        Cheques count from the day they were recorded, whether or not they have
+        cleared (PAY-3), and nothing stops a customer going into credit (PAY-6).
       </p>
     </>
   );

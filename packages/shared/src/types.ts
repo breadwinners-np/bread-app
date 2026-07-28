@@ -21,6 +21,13 @@ export type DeliveryStatus =
 
 export type PaymentMethod = "cash" | "cheque" | "mobile_money";
 
+/**
+ * Where a payment record came from. `admin` is the owner recording money she
+ * has in hand; `app` is a customer reporting from their phone that they have
+ * paid, which is a claim until she confirms it (decision 0013).
+ */
+export type PaymentSource = "admin" | "app";
+
 export type CostCategory = "gas" | "ingredients" | "transport";
 
 /** Where an order came from. Phone and text orders are entered by the owner. */
@@ -91,10 +98,27 @@ export interface Delivery {
 export interface Payment {
   id: string;
   customerId: string;
+  /**
+   * The order this payment was put against, when the owner tied it to one.
+   * Left unset for a lump sum on the account — a monthly cheque covering many
+   * days of bread — which is spread across unpaid orders oldest first.
+   */
+  orderId?: string | null;
   amountPesewas: number;
   method: PaymentMethod;
+  /** Cheque number, mobile money reference, or whatever identifies it. */
   reference?: string;
+  note?: string;
+  source: PaymentSource;
   recordedAt: string;
+  /**
+   * When the owner confirmed the money arrived. She confirms her own entries as
+   * she saves them; a payment reported from a customer's phone arrives null and
+   * counts for nothing until she agrees.
+   */
+  confirmedAt?: string | null;
+  /** Set when the owner says a reported payment never arrived. */
+  rejectedAt?: string | null;
 }
 
 export interface Cost {

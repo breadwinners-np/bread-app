@@ -108,8 +108,10 @@ fabricated. Do not enter real customer information. See
 [DECISIONS.md](DECISIONS.md) entries 0008 and 0009.
 
 What works today: the daily delivery round, customers with balances, order
-history, and forms to add a customer or an order. Payments, Costs, and Reports
-are placeholders that name the business questions blocking them.
+history, recording payments against a customer's deliveries, inventory
+purchases, and reports over any stretch of days with charts and a plain-language
+summary. Recording costs that have no countable item is still a placeholder that
+names the questions blocking it.
 
 Other useful commands — `build` makes a production build, `typecheck` and `lint`
 run across every workspace:

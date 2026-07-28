@@ -17,9 +17,9 @@ const NAV: NavItem[] = [
   { href: "/orders", label: "Orders", icon: <ClipboardIcon /> },
   { href: "/customers", label: "Customers", icon: <PeopleIcon /> },
   { href: "/inventory", label: "Inventory", icon: <BoxIcon /> },
-  { href: "/payments", label: "Payments", icon: <CashIcon />, comingSoon: true },
+  { href: "/payments", label: "Payments", icon: <CashIcon /> },
   { href: "/costs", label: "Costs", icon: <ReceiptIcon />, comingSoon: true },
-  { href: "/reports", label: "Reports", icon: <ChartIcon />, comingSoon: true },
+  { href: "/reports", label: "Reports", icon: <ChartIcon /> },
 ];
 
 export function Sidebar() {

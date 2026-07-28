@@ -136,6 +136,9 @@ function seed(): Store {
     delivery("dlv-14", "ord-14", "pending", 0, null),
   ];
 
+  // Between them these cover every state the payments screen can show: a lump
+  // sum spread across several days of bread, a payment tied to one order, a
+  // part payment, and a customer's own claim waiting to be confirmed.
   const payments: Payment[] = [
     {
       id: "pay-1",
@@ -143,22 +146,44 @@ function seed(): Store {
       amountPesewas: 288000,
       method: "cheque",
       reference: "Cheque 004821 — GCB",
+      note: "Covers the first part of the month",
+      source: "admin",
       recordedAt: `${twoDaysAgo}T10:00:00Z`,
+      confirmedAt: `${twoDaysAgo}T10:00:00Z`,
     },
     {
       id: "pay-2",
-      customerId: "cus-3",
-      amountPesewas: 7200,
+      customerId: "cus-4",
+      orderId: "ord-12",
+      amountPesewas: 6000,
       method: "mobile_money",
       reference: "MoMo 8891",
-      recordedAt: `${yesterday}T09:15:00Z`,
+      source: "admin",
+      recordedAt: `${twoDaysAgo}T09:15:00Z`,
+      confirmedAt: `${twoDaysAgo}T09:15:00Z`,
     },
     {
       id: "pay-3",
       customerId: "cus-5",
-      amountPesewas: 18000,
+      orderId: "ord-10",
+      amountPesewas: 10000,
       method: "cash",
+      source: "admin",
       recordedAt: `${yesterday}T07:00:00Z`,
+      confirmedAt: `${yesterday}T07:00:00Z`,
+    },
+    // Reported from a customer's phone. Not confirmed, so it counts for
+    // nothing yet — the buyer app does not exist, this is what one would send.
+    {
+      id: "pay-4",
+      customerId: "cus-3",
+      orderId: "ord-3",
+      amountPesewas: 7200,
+      method: "mobile_money",
+      reference: "MoMo 4471",
+      source: "app",
+      recordedAt: `${today}T06:30:00Z`,
+      confirmedAt: null,
     },
   ];
 
