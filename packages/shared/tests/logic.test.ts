@@ -735,6 +735,10 @@ describe("reports", () => {
   it("RULE: range presets resolve and round-trip", () => {
     const today = "2026-07-28";
     expect(resolveRangePreset("today", today)).toEqual({ from: today, to: today });
+    expect(resolveRangePreset("yesterday", today)).toEqual({
+      from: "2026-07-27",
+      to: "2026-07-27",
+    });
     expect(resolveRangePreset("last_7_days", today)).toEqual({ from: "2026-07-22", to: today });
     expect(resolveRangePreset("this_month", today)).toEqual({ from: "2026-07-01", to: today });
     expect(resolveRangePreset("last_month", today)).toEqual({ from: "2026-06-01", to: "2026-06-30" });
@@ -742,6 +746,12 @@ describe("reports", () => {
 
     expect(matchRangePreset({ from: "2026-07-01", to: today }, today)).toBe("this_month");
     expect(matchRangePreset({ from: "2026-02-03", to: "2026-02-09" }, today)).toBe("custom");
+    // Yesterday is a single day like Today, so the two must not shadow each
+    // other — matchRangePreset returns the first preset that fits.
+    expect(matchRangePreset({ from: today, to: today }, today)).toBe("today");
+    expect(
+      matchRangePreset({ from: "2026-07-27", to: "2026-07-27" }, today),
+    ).toBe("yesterday");
   });
 
   it("RULE: isWithin is inclusive at both ends", () => {

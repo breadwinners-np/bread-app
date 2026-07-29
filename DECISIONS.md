@@ -146,6 +146,12 @@ Separately, "Show the numbers" lists days **newest first**. She is nearly always
 looking for what just happened. The chart above it stays in time order — a chart
 that ran right to left would be unreadable.
 
+**Yesterday** joined Today, Last 7 days, This month and Last month as a preset,
+because it is the most recent day that is actually finished — today is still
+happening, so its figures move under her. The presets live in `@bread/shared`
+next to the function that resolves them, so the phone app cannot end up with a
+different idea of what "last month" means.
+
 ## 0016 — Orders and deliveries are read as a month, not as a list
 
 **Date:** 2026-07-29 · **Status:** Proposed · **Asked for by the owner's daughter**

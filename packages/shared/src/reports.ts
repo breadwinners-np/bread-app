@@ -117,6 +117,7 @@ export function isWithin(date: string, range: DateRange): boolean {
 /** Named stretches of time the owner picks from, rather than typing dates. */
 export type RangePresetId =
   | "today"
+  | "yesterday"
   | "last_7_days"
   | "this_month"
   | "last_month"
@@ -124,6 +125,7 @@ export type RangePresetId =
 
 export const RANGE_PRESETS: readonly { id: RangePresetId; label: string }[] = [
   { id: "today", label: "Today" },
+  { id: "yesterday", label: "Yesterday" },
   { id: "last_7_days", label: "Last 7 days" },
   { id: "this_month", label: "This month" },
   { id: "last_month", label: "Last month" },
@@ -136,6 +138,12 @@ export function resolveRangePreset(
   switch (preset) {
     case "today":
       return { from: today, to: today };
+    case "yesterday": {
+      // A full day that is actually finished — the one she is most likely to
+      // want a straight answer about, since today is still happening.
+      const day = shiftDays(today, -1);
+      return { from: day, to: day };
+    }
     case "last_7_days":
       return { from: shiftDays(today, -6), to: today };
     case "this_month":
