@@ -8,6 +8,7 @@
 
 import {
   daysBetween,
+  monthOf,
   orderQuantity,
   orderStatusForDelivery,
   outstandingReason,
@@ -25,6 +26,56 @@ export interface OutstandingDelivery extends DeliveryListItem {
   reason: OutstandingReason;
   /** Whole days between the day it was due and today. */
   daysLate: number;
+}
+
+/** One day's round, as a calendar cell needs it. */
+export interface DeliveryDaySummary {
+  date: string;
+  /** Drops planned for that day. */
+  total: number;
+  /** Delivered in full or in part. */
+  done: number;
+  /** Someone tried and could not deliver. */
+  failed: number;
+  quantity: number;
+}
+
+/**
+ * Every day in a month that has deliveries on it, keyed by day.
+ *
+ * This is what somebody standing in for the owner reads first: which days have
+ * bread going out, and which of those still need doing.
+ */
+export async function listDeliveryDaysForMonth(
+  month: string,
+): Promise<Record<string, DeliveryDaySummary>> {
+  const store = getStore();
+  const days: Record<string, DeliveryDaySummary> = {};
+
+  for (const order of store.orders) {
+    if (order.status === "cancelled") continue;
+    if (monthOf(order.deliveryDate) !== month) continue;
+
+    const delivery = store.deliveries.find((entry) => entry.orderId === order.id);
+    if (!delivery) continue;
+
+    const day = (days[order.deliveryDate] ??= {
+      date: order.deliveryDate,
+      total: 0,
+      done: 0,
+      failed: 0,
+      quantity: 0,
+    });
+
+    day.total += 1;
+    day.quantity += orderQuantity(order);
+    if (delivery.status === "delivered" || delivery.status === "partial") {
+      day.done += 1;
+    }
+    if (delivery.status === "not_delivered") day.failed += 1;
+  }
+
+  return simulateLatency(days);
 }
 
 export async function listDeliveriesForDate(

@@ -94,10 +94,14 @@ http://localhost:3000.
 **What works:** the daily delivery round (mark delivered in full, part
 delivered with a quantity, or could not deliver — the dashboard updates),
 customer list with balances, customer detail with order and payment history,
-order list, forms to add a customer and an order, inventory purchases, payments
-recorded against a customer's deliveries, and reports over a chosen stretch of
-days. Recording a cost with no countable item is still a placeholder naming the
-open questions blocking it.
+orders and deliveries as a month calendar you tap into, forms to add a customer
+and an order, inventory purchases, payments recorded against a customer's
+deliveries, and reports over a chosen stretch of days. Recording a cost with no
+countable item is still a placeholder naming the open questions blocking it.
+
+**Changed 2026-07-29** (decisions 0016–0017, asked for by the owner's daughter):
+orders and deliveries are read as a month calendar, and reports say "profit"
+rather than "left over".
 
 **Money rules added 2026-07-28** (decisions 0012–0014): an order is owed once it
 has been delivered, a part delivery is owed for what arrived, and a payment a

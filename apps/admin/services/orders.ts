@@ -5,7 +5,13 @@
  * here — so the mobile app arrives at exactly the same numbers.
  */
 
-import { orderTotalPesewas, type Order, type OrderInput } from "@bread/shared";
+import {
+  monthOf,
+  orderQuantity,
+  orderTotalPesewas,
+  type Order,
+  type OrderInput,
+} from "@bread/shared";
 
 import { getStore, newId, simulateLatency } from "./store";
 
@@ -15,6 +21,45 @@ export interface OrderWithContext {
   productName: string;
   quantity: number;
   totalPesewas: number;
+}
+
+/** One day's worth of orders, as a calendar cell needs it. */
+export interface OrderDaySummary {
+  date: string;
+  orderCount: number;
+  quantity: number;
+  valuePesewas: number;
+}
+
+/**
+ * Every day in a month that has orders on it, keyed by day.
+ *
+ * Cancelled orders are left out: the calendar answers "what is going out that
+ * day", and a cancelled order is not going out.
+ */
+export async function listOrderDaysForMonth(
+  month: string,
+): Promise<Record<string, OrderDaySummary>> {
+  const store = getStore();
+  const days: Record<string, OrderDaySummary> = {};
+
+  for (const order of store.orders) {
+    if (order.status === "cancelled") continue;
+    if (monthOf(order.deliveryDate) !== month) continue;
+
+    const day = (days[order.deliveryDate] ??= {
+      date: order.deliveryDate,
+      orderCount: 0,
+      quantity: 0,
+      valuePesewas: 0,
+    });
+
+    day.orderCount += 1;
+    day.quantity += orderQuantity(order);
+    day.valuePesewas += orderTotalPesewas(order);
+  }
+
+  return simulateLatency(days);
 }
 
 export async function listOrders(): Promise<OrderWithContext[]> {

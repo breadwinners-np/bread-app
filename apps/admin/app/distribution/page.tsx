@@ -8,12 +8,15 @@ import {
   formatDate,
   formatLongDate,
   isValidIsoDate,
+  isValidIsoMonth,
+  monthOf,
   relativeDayLabel,
   todayIso,
 } from "@bread/shared";
 
 import { recordDeliveryAction, rescheduleDeliveryAction } from "@/app/actions";
 import { ConfirmButton, GuardedSubmit } from "@/components/confirm-button";
+import { MonthCalendar, type CalendarCell } from "@/components/month-calendar";
 import {
   Badge,
   ButtonLink,
@@ -26,6 +29,7 @@ import {
 } from "@/components/ui";
 import {
   listDeliveriesForDate,
+  listDeliveryDaysForMonth,
   listOutstandingDeliveries,
 } from "@/services/deliveries";
 
@@ -34,14 +38,17 @@ export const dynamic = "force-dynamic";
 export default async function DistributionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; view?: string }>;
+  searchParams: Promise<{ date?: string; month?: string; view?: string }>;
 }) {
-  const { date, view } = await searchParams;
+  const { date, month, view } = await searchParams;
   const today = todayIso();
   // A typed or stale ?date= is not trusted: anything that is not a real day
   // falls back to today, so a bad link shows her the round rather than an error.
   const activeDate = date && isValidIsoDate(date) ? date : today;
   const showOutstanding = view === "outstanding";
+  const showCalendar = view === "calendar";
+  const activeMonth =
+    month && isValidIsoMonth(month) ? month : monthOf(activeDate);
 
   const outstanding = await listOutstandingDeliveries();
 
@@ -52,13 +59,18 @@ export default async function DistributionPage({
         subtitle={
           showOutstanding
             ? "Bread that never reached the customer"
-            : `${relativeDayLabel(activeDate, today) ? `${relativeDayLabel(activeDate, today)} — ` : ""}${formatLongDate(activeDate)}`
+            : showCalendar
+              ? "Tap a day to see the round for it"
+              : `${relativeDayLabel(activeDate, today) ? `${relativeDayLabel(activeDate, today)} — ` : ""}${formatLongDate(activeDate)}`
         }
       />
 
       <div className="mb-8 flex flex-wrap gap-6 border-b border-stone-200">
-        <Tab href="/distribution" active={!showOutstanding}>
+        <Tab href="/distribution" active={!showOutstanding && !showCalendar}>
           The day&apos;s round
+        </Tab>
+        <Tab href="/distribution?view=calendar" active={showCalendar}>
+          Calendar
         </Tab>
         <Tab href="/distribution?view=outstanding" active={showOutstanding}>
           Needs sorting out
@@ -72,9 +84,71 @@ export default async function DistributionPage({
 
       {showOutstanding ? (
         <OutstandingView items={outstanding} today={today} />
+      ) : showCalendar ? (
+        <CalendarView month={activeMonth} today={today} />
       ) : (
         <DayView activeDate={activeDate} today={today} />
       )}
+    </>
+  );
+}
+
+/**
+ * The month at a glance, for planning ahead or for somebody standing in.
+ *
+ * Each day says how much of its round is done, so an unfinished day is visible
+ * without opening it. Days that failed are called out in words as well as
+ * colour.
+ */
+async function CalendarView({ month, today }: { month: string; today: string }) {
+  const days = await listDeliveryDaysForMonth(month);
+
+  const cells: Record<string, CalendarCell> = {};
+  for (const [date, day] of Object.entries(days)) {
+    const remaining = day.total - day.done;
+
+    cells[date] = {
+      date,
+      href: `/distribution?date=${date}`,
+      primary: `${day.total} ${day.total === 1 ? "drop" : "drops"}`,
+      secondary:
+        day.failed > 0
+          ? `${day.failed} could not be delivered`
+          : remaining === 0
+            ? "All done"
+            : `${remaining} still to do`,
+      tone: day.failed > 0 ? "bad" : remaining === 0 ? "good" : "warn",
+    };
+  }
+
+  return (
+    <>
+      <Card>
+        <MonthCalendar
+          month={month}
+          cells={cells}
+          today={today}
+          basePath="/distribution"
+          baseQuery="view=calendar"
+        />
+      </Card>
+
+      <HowThisWorks>
+        <p>
+          A day is marked{" "}
+          <strong className="font-semibold text-stone-900">All done</strong> once
+          every drop on it has been recorded, whether the customer took all of
+          the bread or only some.
+        </p>
+        <p>
+          Days still to do are worth checking even when they have passed — a day
+          nobody filled in shows up in{" "}
+          <strong className="font-semibold text-stone-900">
+            Needs sorting out
+          </strong>{" "}
+          as well.
+        </p>
+      </HowThisWorks>
     </>
   );
 }
@@ -133,6 +207,12 @@ async function DayView({
           variant="secondary"
         >
           The next day →
+        </ButtonLink>
+        <ButtonLink
+          href={`/distribution?view=calendar&month=${monthOf(activeDate)}`}
+          variant="secondary"
+        >
+          Whole month
         </ButtonLink>
 
         <p className="ml-auto font-medium text-stone-700">
