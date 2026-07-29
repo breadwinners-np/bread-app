@@ -17,7 +17,7 @@ export default async function NewPaymentPage() {
         title="Record a payment"
         subtitle="Money you have received"
         action={
-          <ButtonLink href="/payments" variant="quiet">
+          <ButtonLink href="/payments" variant="secondary">
             Cancel
           </ButtonLink>
         }

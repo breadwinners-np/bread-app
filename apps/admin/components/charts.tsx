@@ -78,12 +78,12 @@ export function ChartLegend({
   items: { label: string; color: string }[];
 }) {
   return (
-    <ul className="mb-4 flex flex-wrap gap-5">
+    <ul className="mb-5 flex flex-wrap gap-5">
       {items.map((item) => (
-        <li key={item.label} className="flex items-center gap-2 text-stone-700">
+        <li key={item.label} className="flex items-center gap-2 text-sm text-stone-600">
           <span
             aria-hidden
-            className="inline-block h-3 w-3 rounded-sm"
+            className="inline-block h-2.5 w-2.5 rounded-sm"
             style={{ backgroundColor: item.color }}
           />
           {item.label}
@@ -229,7 +229,7 @@ export function MoneyColumnsChart({
         })}
       </svg>
 
-      <figcaption className="mt-1 text-sm text-stone-500">
+      <figcaption className="mt-3 text-sm text-stone-500">
         Cedis, by {periodLabel}. Hover a column for the exact amounts.
       </figcaption>
     </figure>
@@ -272,7 +272,7 @@ export function RankedBarsChart({
 
         return (
           <li key={bar.key} className="grid grid-cols-[10rem_1fr_auto] items-center gap-4">
-            <span className="truncate text-stone-800" title={bar.label}>
+            <span className="truncate text-stone-700" title={bar.label}>
               {bar.label}
             </span>
 
@@ -287,9 +287,9 @@ export function RankedBarsChart({
             </svg>
 
             <span className="text-right tabular-nums text-stone-900">
-              <span className="font-semibold">{formatGhs(bar.valuePesewas)}</span>
+              <span className="font-medium">{formatGhs(bar.valuePesewas)}</span>
               {bar.detail && (
-                <span className="ml-2 text-stone-500">{bar.detail}</span>
+                <span className="ml-2 text-sm text-stone-500">{bar.detail}</span>
               )}
             </span>
           </li>

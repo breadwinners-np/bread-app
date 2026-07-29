@@ -11,6 +11,7 @@ import {
   Card,
   EmptyState,
   PageHeader,
+  QuestionForYou,
 } from "@/components/ui";
 import { listOrders } from "@/services/orders";
 
@@ -23,37 +24,41 @@ export default async function OrdersPage() {
     <>
       <PageHeader
         title="Orders"
-        subtitle={`${orders.length} in total`}
-        action={<ButtonLink href="/orders/new">Add an order</ButtonLink>}
+        subtitle={
+          orders.length === 1
+            ? "1 order written down"
+            : `${orders.length} orders written down`
+        }
+        action={<ButtonLink href="/orders/new">Write down an order</ButtonLink>}
       />
 
       {orders.length === 0 ? (
         <EmptyState
           title="No orders yet"
-          description="Add an order and it will appear on the delivery round for that day."
+          description="Write down an order and it will appear on the deliveries for that day."
         />
       ) : (
-        <Card className="p-0">
-          <ul className="divide-y divide-stone-200">
+        <Card padded={false}>
+          <ul className="divide-y divide-stone-100">
             {orders.map((entry) => {
               const dayLabel = relativeDayLabel(entry.order.deliveryDate);
 
               return (
                 <li
                   key={entry.order.id}
-                  className="flex flex-wrap items-center justify-between gap-4 px-6 py-5"
+                  className="flex flex-wrap items-center justify-between gap-4 px-6 py-4"
                 >
                   <div className="min-w-48">
-                    <p className="text-lg font-semibold text-stone-900">
+                    <p className="font-medium text-stone-900">
                       {entry.customerName}
                     </p>
-                    <p className="text-stone-500">
+                    <p className="text-stone-600">
                       {entry.quantity} × {entry.productName}
                     </p>
                   </div>
 
                   <div className="min-w-36">
-                    <p className="font-medium text-stone-800">
+                    <p className="text-stone-800">
                       {formatDate(entry.order.deliveryDate)}
                     </p>
                     {dayLabel && (
@@ -75,7 +80,7 @@ export default async function OrdersPage() {
                     {ORDER_STATUS_LABELS[entry.order.status]}
                   </Badge>
 
-                  <p className="w-28 text-right text-lg font-semibold tabular-nums text-stone-900">
+                  <p className="w-32 text-right font-semibold tabular-nums text-stone-900">
                     {formatGhs(entry.totalPesewas)}
                   </p>
                 </li>
@@ -85,12 +90,23 @@ export default async function OrdersPage() {
         </Card>
       )}
 
-      <p className="mt-6 rounded-xl bg-amber-50 px-5 py-4 text-amber-900">
-        <strong className="font-semibold">Monthly agreements are missing.</strong>{" "}
-        Wholesale customers like Baatsonaa Total agree a quantity for the whole
-        month, but how that total becomes daily deliveries is still open (ORD-3),
-        so orders here are day-by-day only.
-      </p>
+      <QuestionForYou>
+        <p>
+          Every order here is for{" "}
+          <strong className="font-semibold text-stone-900">one single day</strong>. Customers like
+          Baatsonaa Total agree an amount for the whole month, and there is no
+          way to write that down yet.
+        </p>
+        <p>
+          <strong className="font-semibold text-stone-900">
+            When a customer agrees an amount for the month, how do you decide
+            what goes out each day?
+          </strong>{" "}
+          Do you split it evenly, or do they tell you how much they want each
+          morning? And if the month ends and they took less than they agreed,
+          do they still pay for the rest?
+        </p>
+      </QuestionForYou>
     </>
   );
 }

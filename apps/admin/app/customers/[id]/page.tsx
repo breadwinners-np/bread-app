@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import {
@@ -15,9 +16,10 @@ import {
   Badge,
   ButtonLink,
   Card,
-  EmptyState,
+  HowThisWorks,
   PageHeader,
   SectionTitle,
+  StatRow,
   StatTile,
 } from "@/components/ui";
 import { getCustomer } from "@/services/customers";
@@ -58,22 +60,22 @@ export default async function CustomerDetailPage({
         title={customer.name}
         subtitle={`${CUSTOMER_TYPE_LABELS[customer.type]} · ${customer.area} · ${customer.phone}`}
         action={
-          <ButtonLink href="/payments/new">Record a payment</ButtonLink>
+          <ButtonLink href="/payments/new">Write down a payment</ButtonLink>
         }
       />
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatRow>
         <StatTile
-          label="Owes you"
+          label="They owe you"
           value={formatGhs(Math.max(0, account.balancePesewas))}
           hint={
             account.balancePesewas < 0
-              ? `${formatGhs(-account.balancePesewas)} in credit`
-              : "Bread delivered, not paid for"
+              ? `They have paid ${formatGhs(-account.balancePesewas)} too much`
+              : "Bread they have had but not paid for"
           }
         />
         <StatTile
-          label="Coming up"
+          label="Bread still to come"
           value={formatGhs(account.notYetDuePesewas)}
           hint="Ordered, not delivered yet"
         />
@@ -83,48 +85,48 @@ export default async function CustomerDetailPage({
           hint={`${payments.length} ${payments.length === 1 ? "payment" : "payments"}`}
         />
         <StatTile label="Orders" value={String(customer.orderCount)} />
-      </div>
+      </StatRow>
 
       {account.awaitingConfirmationPesewas > 0 && (
-        <Card className="mb-8 border-l-4 border-l-amber-500 bg-amber-50">
-          <p className="text-lg text-stone-800">
+        <Card className="mb-10 border-l-4 border-l-amber-500">
+          <p className="text-stone-700">
             They say they have paid{" "}
-            <strong className="font-bold">
+            <strong className="font-semibold text-stone-900">
               {formatGhs(account.awaitingConfirmationPesewas)}
-            </strong>{" "}
-            which is not counted above yet.{" "}
-            <a href="/payments" className="font-semibold underline">
-              Confirm it on the payments page
-            </a>
+            </strong>
+            , which is not counted above yet.{" "}
+            <Link href="/payments" className="font-medium text-stone-900 underline underline-offset-4">
+              Check it on the Money in page
+            </Link>
             .
           </p>
         </Card>
       )}
 
       {customer.notes && (
-        <Card className="mb-8">
+        <Card className="mb-10">
           <SectionTitle>Notes</SectionTitle>
-          <p className="text-stone-700">{customer.notes}</p>
+          <p className="mt-2 text-stone-700">{customer.notes}</p>
         </Card>
       )}
 
-      <Card className="mb-8">
+      <Card className="mb-10">
         <SectionTitle>Orders</SectionTitle>
 
         {orders.length === 0 ? (
-          <EmptyState title="No orders yet" />
+          <p className="mt-2 text-stone-600">No orders yet.</p>
         ) : (
-          <ul className="divide-y divide-stone-200">
+          <ul className="mt-4 divide-y divide-stone-100">
             {orders.map((entry) => (
               <li
                 key={entry.order.id}
                 className="flex flex-wrap items-center justify-between gap-3 py-4"
               >
                 <div>
-                  <p className="font-semibold text-stone-900">
+                  <p className="font-medium text-stone-900">
                     {formatDate(entry.order.deliveryDate)}
                   </p>
-                  <p className="text-stone-500">
+                  <p className="text-stone-600">
                     {entry.quantity} × {entry.productName}
                   </p>
                 </div>
@@ -151,7 +153,7 @@ export default async function CustomerDetailPage({
                     }
                   />
 
-                  <p className="w-28 text-right font-semibold tabular-nums text-stone-900">
+                  <p className="w-32 text-right font-semibold tabular-nums text-stone-900">
                     {formatGhs(entry.totalPesewas)}
                   </p>
                 </div>
@@ -165,25 +167,25 @@ export default async function CustomerDetailPage({
         <SectionTitle>Payments</SectionTitle>
 
         {payments.length === 0 ? (
-          <EmptyState title="No payments recorded" />
+          <p className="mt-2 text-stone-600">No payments written down yet.</p>
         ) : (
-          <ul className="divide-y divide-stone-200">
+          <ul className="mt-4 divide-y divide-stone-100">
             {payments.map((payment) => (
               <li
                 key={payment.id}
                 className="flex flex-wrap items-center justify-between gap-3 py-4"
               >
                 <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <p className="font-semibold text-stone-900">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <p className="font-medium text-stone-900">
                       {PAYMENT_METHOD_LABELS[payment.method]}
                     </p>
                     {isAwaitingConfirmation(payment) && (
-                      <Badge tone="warn">Waiting for you to confirm</Badge>
+                      <Badge tone="warn">Waiting for you to check</Badge>
                     )}
-                    {payment.rejectedAt && <Badge tone="bad">Never arrived</Badge>}
+                    {payment.rejectedAt && <Badge tone="bad">Never came</Badge>}
                   </div>
-                  <p className="text-stone-500">
+                  <p className="text-sm text-stone-500">
                     {formatDate(payment.recordedAt.slice(0, 10))}
                     {payment.reference ? ` · ${payment.reference}` : ""}
                   </p>
@@ -191,7 +193,7 @@ export default async function CustomerDetailPage({
                 <p
                   className={`font-semibold tabular-nums ${
                     payment.confirmedAt && !payment.rejectedAt
-                      ? "text-green-700"
+                      ? "text-stone-900"
                       : "text-stone-400"
                   }`}
                 >
@@ -203,13 +205,18 @@ export default async function CustomerDetailPage({
         )}
       </Card>
 
-      <p className="mt-8 rounded-xl bg-amber-50 px-5 py-4 text-amber-900">
-        <strong className="font-semibold">An order is only owed once it has
-        been delivered</strong>{" "}
-        (decision 0012). A part delivery is owed for what actually arrived, which
-        is a provisional answer to an open question (DST-7) — say the word if a
-        short drop should still be charged in full.
-      </p>
+      <HowThisWorks>
+        <p>
+          A customer owes you for bread{" "}
+          <strong className="font-semibold text-stone-900">once it has reached them</strong>,
+          not when the order is written down.
+        </p>
+        <p>
+          If they took only some of what they ordered, they are charged for what
+          they took. Tell us if you would rather they paid the full amount
+          anyway, and it can be changed.
+        </p>
+      </HowThisWorks>
     </>
   );
 }

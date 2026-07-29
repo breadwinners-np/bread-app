@@ -24,8 +24,8 @@ export default function RootLayout({
       <body className="min-h-full font-sans">
         <div className="flex min-h-screen">
           <Sidebar />
-          <main className="flex-1 px-8 py-8 lg:px-12">
-            <div className="mx-auto w-full max-w-5xl">{children}</div>
+          <main className="flex-1 px-8 py-12 lg:px-16">
+            <div className="mx-auto w-full max-w-4xl">{children}</div>
           </main>
         </div>
       </body>

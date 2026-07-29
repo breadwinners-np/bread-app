@@ -39,6 +39,26 @@ export function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/**
+ * Whether a string is a real calendar day in `YYYY-MM-DD` form.
+ *
+ * The shape test alone is not enough: `2026-02-31` and `2026-13-45` both match
+ * the pattern and neither exists. Round-tripping through `Date` is what rules
+ * them out, and it also rejects anything JavaScript would silently roll over
+ * into the following month.
+ *
+ * Anything reaching a date helper from a URL or a form should pass through here
+ * first.
+ */
+export function isValidIsoDate(iso: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+
+  const date = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return false;
+
+  return date.toISOString().slice(0, 10) === iso;
+}
+
 /** Format an ISO `YYYY-MM-DD` as `DD/MM/YYYY`. */
 export function formatDate(iso: string): string {
   const [year, month, day] = iso.split("-");
@@ -57,9 +77,18 @@ export function formatLongDate(iso: string): string {
   return `${dayName}, ${date.getUTCDate()} ${monthName} ${date.getUTCFullYear()}`;
 }
 
-/** Shift an ISO `YYYY-MM-DD` by a number of days. */
+/**
+ * Shift an ISO `YYYY-MM-DD` by a number of days.
+ *
+ * Returns the input unchanged if it is not a real date, matching every other
+ * helper in this file. Without that guard `.toISOString()` throws RangeError on
+ * an Invalid Date, which took down any screen that put an unvalidated date into
+ * a "previous day" link.
+ */
 export function addDays(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return iso;
+
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }
@@ -88,6 +117,10 @@ export function startOfMonth(iso: string): string {
 /** The last day of the month a date falls in. */
 export function endOfMonth(iso: string): string {
   const date = new Date(`${startOfMonth(iso)}T00:00:00Z`);
+  // Same guard as addDays, and for the same reason — this one builds its own
+  // string first, so a malformed input reaches Date just as easily.
+  if (Number.isNaN(date.getTime())) return iso;
+
   date.setUTCMonth(date.getUTCMonth() + 1);
   date.setUTCDate(0);
   return date.toISOString().slice(0, 10);

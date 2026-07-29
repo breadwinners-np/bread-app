@@ -7,7 +7,7 @@ export default function NewCustomerPage() {
       <PageHeader
         title="Add a customer"
         action={
-          <ButtonLink href="/customers" variant="quiet">
+          <ButtonLink href="/customers" variant="secondary">
             Cancel
           </ButtonLink>
         }

@@ -9,15 +9,17 @@ import {
 } from "@bread/shared";
 
 import { decidePaymentAction } from "@/app/actions";
+import { ConfirmButton, GuardedSubmit } from "@/components/confirm-button";
 import {
   Badge,
   ButtonLink,
   Card,
   EmptyState,
   PageHeader,
+  QuestionForYou,
   SectionTitle,
+  StatRow,
   StatTile,
-  buttonClass,
 } from "@/components/ui";
 import {
   getPaymentsOverview,
@@ -48,58 +50,88 @@ export default async function PaymentsPage() {
   return (
     <>
       <PageHeader
-        title="Payments"
+        title="Money in"
         subtitle="Cash, cheques and mobile money"
-        action={<ButtonLink href="/payments/new">Record a payment</ButtonLink>}
+        action={
+          <ButtonLink href="/payments/new">Write down a payment</ButtonLink>
+        }
       />
 
       {pending.length > 0 && (
-        <Card className="mb-8 border-l-4 border-l-amber-500 bg-amber-50">
+        <Card className="mb-10 border-l-4 border-l-amber-500">
           <SectionTitle>
             {pending.length === 1
-              ? "1 customer says they have paid"
-              : `${pending.length} customers say they have paid`}
+              ? "1 customer says they have paid you"
+              : `${pending.length} customers say they have paid you`}
           </SectionTitle>
-          <p className="mb-5 text-stone-700">
-            These came from a customer&apos;s phone. They do not count against
-            what the customer owes until you say the money arrived.
+          <p className="mt-1.5 text-stone-600">
+            This came from the customer&apos;s own phone. It does not count
+            against what they owe until you say the money reached you.
           </p>
 
-          <ul className="space-y-4">
+          <ul className="mt-5 space-y-4 border-t border-stone-100 pt-5">
             {pending.map((entry) => (
               <li
                 key={entry.payment.id}
-                className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white px-5 py-4"
+                className="flex flex-wrap items-start justify-between gap-4"
               >
                 <div>
-                  <p className="text-lg font-semibold text-stone-900">
-                    {entry.customerName} — {formatGhs(entry.payment.amountPesewas)}
+                  <p className="font-medium text-stone-900">
+                    {entry.customerName} —{" "}
+                    <span className="tabular-nums">
+                      {formatGhs(entry.payment.amountPesewas)}
+                    </span>
                   </p>
                   <p className="text-stone-600">
                     {PAYMENT_METHOD_LABELS[entry.payment.method]}
-                    {entry.payment.reference ? ` · ${entry.payment.reference}` : ""}
+                    {entry.payment.reference
+                      ? ` · ${entry.payment.reference}`
+                      : ""}
                     {entry.orderLabel ? ` · for ${entry.orderLabel}` : ""}
                   </p>
                   <p className="text-sm text-stone-500">
-                    Reported {formatDate(entry.payment.recordedAt.slice(0, 10))}
+                    They told you on{" "}
+                    {formatDate(entry.payment.recordedAt.slice(0, 10))}
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap items-start gap-2">
                   <form action={decidePaymentAction}>
-                    <input type="hidden" name="paymentId" value={entry.payment.id} />
+                    <input
+                      type="hidden"
+                      name="paymentId"
+                      value={entry.payment.id}
+                    />
                     <input type="hidden" name="decision" value="confirm" />
-                    <button type="submit" className={buttonClass("primary")}>
-                      Yes, it arrived
-                    </button>
+                    <GuardedSubmit label="Yes, it reached me" variant="primary" />
                   </form>
 
+                  {/*
+                    Saying no writes off money the customer believes they have
+                    paid, so it asks first. Saying yes does not — it is the
+                    ordinary outcome, and it stays visible on the list below if
+                    she presses it by mistake.
+                  */}
                   <form action={decidePaymentAction}>
-                    <input type="hidden" name="paymentId" value={entry.payment.id} />
-                    <input type="hidden" name="decision" value="reject" />
-                    <button type="submit" className={buttonClass("quiet")}>
-                      No, it did not
-                    </button>
+                    <input
+                      type="hidden"
+                      name="paymentId"
+                      value={entry.payment.id}
+                    />
+                    <ConfirmButton
+                      label="No, it did not"
+                      variant="danger"
+                      confirmVariant="danger"
+                      question={`Record that ${formatGhs(entry.payment.amountPesewas)} from ${entry.customerName} never reached you?`}
+                      confirmLabel="Yes, it never came"
+                      name="decision"
+                      value="reject"
+                    >
+                      <p className="text-stone-600">
+                        They will still owe this money, and it stays on the list
+                        below crossed out.
+                      </p>
+                    </ConfirmButton>
                   </form>
                 </div>
               </li>
@@ -108,18 +140,19 @@ export default async function PaymentsPage() {
         </Card>
       )}
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-3">
+      <StatRow>
         <StatTile
-          label="Received this month"
+          label="Came in this month"
           value={formatGhs(overview.receivedThisMonthPesewas)}
+          hint="Money you have agreed reached you"
         />
         <StatTile
-          label="Owed to you"
+          label="Still owed to you"
           value={formatGhs(overview.owedAcrossCustomersPesewas)}
           hint="Bread delivered but not paid for"
         />
         <StatTile
-          label="Waiting for you to confirm"
+          label="Waiting for you to check"
           value={formatGhs(overview.awaitingConfirmationPesewas)}
           hint={
             overview.awaitingConfirmationCount === 1
@@ -127,15 +160,15 @@ export default async function PaymentsPage() {
               : `${overview.awaitingConfirmationCount} payments`
           }
         />
-      </div>
+      </StatRow>
 
       {payments.length === 0 ? (
         <EmptyState
-          title="No payments recorded yet"
-          description="Record a payment and it will show against the customer's orders."
+          title="No payments written down yet"
+          description="Write down a payment and it will go against the bread that customer has had."
         />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {[...byDate.entries()].map(([date, entries]) => {
             const dayLabel = relativeDayLabel(date, today);
             // Only money she has agreed arrived. A claim waiting on her, or one
@@ -145,9 +178,9 @@ export default async function PaymentsPage() {
               .reduce((total, entry) => total + entry.payment.amountPesewas, 0);
 
             return (
-              <Card key={date} className="p-0">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-6 py-4">
-                  <p className="text-lg font-semibold text-stone-900">
+              <Card key={date} padded={false}>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-6 py-3.5">
+                  <p className="font-medium text-stone-900">
                     {formatDate(date)}
                     {dayLabel && (
                       <span className="ml-2 font-normal text-stone-500">
@@ -155,45 +188,45 @@ export default async function PaymentsPage() {
                       </span>
                     )}
                   </p>
-                  <p className="text-lg font-bold tabular-nums text-stone-900">
+                  <p className="font-semibold tabular-nums text-stone-900">
                     {formatGhs(dayTotal)}
                   </p>
                 </div>
 
-                <ul className="divide-y divide-stone-200">
+                <ul className="divide-y divide-stone-100">
                   {entries.map((entry) => (
                     <li
                       key={entry.payment.id}
                       className="flex flex-wrap items-center justify-between gap-3 px-6 py-4"
                     >
                       <div>
-                        <div className="flex flex-wrap items-center gap-3">
-                          <p className="text-lg font-semibold text-stone-900">
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <p className="font-medium text-stone-900">
                             {entry.customerName}
                           </p>
                           <Badge tone={toneFor(entry)}>{stateLabel(entry)}</Badge>
                         </div>
-                        <p className="mt-1 text-stone-600">
+                        <p className="mt-0.5 text-stone-600">
                           {PAYMENT_METHOD_LABELS[entry.payment.method]}
                           {entry.payment.reference
                             ? ` · ${entry.payment.reference}`
                             : ""}
                         </p>
-                        <p className="text-stone-500">
+                        <p className="text-sm text-stone-500">
                           {entry.orderLabel
                             ? `For ${entry.orderLabel}`
-                            : "On the account — goes against the oldest unpaid bread first"}
+                            : "Not tied to one day — it pays off their oldest bread first"}
                           {entry.payment.note ? ` · ${entry.payment.note}` : ""}
                         </p>
                       </div>
 
                       <p
-                        className={`text-lg font-semibold tabular-nums ${
+                        className={`font-semibold tabular-nums ${
                           entry.payment.rejectedAt
                             ? "text-stone-400 line-through"
                             : isPaymentCounted(entry.payment)
-                              ? "text-green-700"
-                              : "text-stone-400"
+                              ? "text-stone-900"
+                              : "text-stone-500"
                         }`}
                       >
                         {formatGhs(entry.payment.amountPesewas)}
@@ -207,14 +240,24 @@ export default async function PaymentsPage() {
         </div>
       )}
 
-      <p className="mt-8 rounded-xl bg-amber-50 px-5 py-4 text-amber-900">
-        <strong className="font-semibold">A cheque counts from the day you
-        record it.</strong>{" "}
-        Whether it should only count once the bank clears it — and what happens
-        to the balance when one bounces — is still an open question (PAY-3).
-        Whether a customer may pay more than they owe and sit in credit is
-        another (PAY-6); nothing here stops it.
-      </p>
+      <QuestionForYou>
+        <p>
+          At the moment a cheque counts as money the day you write it down, even
+          though the bank has not paid it yet.{" "}
+          <strong className="font-semibold text-stone-900">
+            Would you rather it only counted once the bank has cleared it?
+          </strong>{" "}
+          And when a cheque bounces, what should happen to what that customer
+          owes?
+        </p>
+        <p>
+          Nothing here stops a customer paying more than they owe and sitting in
+          credit.{" "}
+          <strong className="font-semibold text-stone-900">
+            Is that allowed, and up to how much?
+          </strong>
+        </p>
+      </QuestionForYou>
     </>
   );
 }
@@ -226,8 +269,8 @@ function toneFor(entry: PaymentWithContext) {
 }
 
 function stateLabel(entry: PaymentWithContext): string {
-  if (entry.payment.rejectedAt) return "Never arrived";
+  if (entry.payment.rejectedAt) return "Never came";
   if (isAwaitingConfirmation(entry.payment)) return "Waiting for you";
-  if (entry.payment.source === "app") return "From the app, confirmed";
-  return "Recorded by you";
+  if (entry.payment.source === "app") return "From their phone, you agreed";
+  return "You wrote it down";
 }

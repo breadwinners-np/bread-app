@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import {
   DELIVERY_STATUS_LABELS,
   deliveryProgress,
@@ -14,8 +12,10 @@ import {
   ButtonLink,
   Card,
   EmptyState,
+  NoticeLink,
   PageHeader,
   SectionTitle,
+  StatRow,
   StatTile,
 } from "@/components/ui";
 import { totalCostsForDate } from "@/services/costs";
@@ -51,52 +51,50 @@ export default async function TodayPage() {
       <PageHeader
         title="Today"
         subtitle={formatLongDate(today)}
-        action={<ButtonLink href="/distribution">Start deliveries</ButtonLink>}
+        action={<ButtonLink href="/distribution">Start the deliveries</ButtonLink>}
       />
 
-      {outstanding.length > 0 && (
-        <Link
-          href="/distribution?view=outstanding"
-          className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-l-4 border-l-red-500 bg-red-50 px-6 py-5 hover:bg-red-100"
-        >
-          <div>
-            <p className="text-lg font-bold text-red-900">
-              {outstanding.length}{" "}
-              {outstanding.length === 1 ? "delivery needs" : "deliveries need"}{" "}
-              attention
-            </p>
-            <p className="text-red-800">
-              Could not be delivered, or the day passed without being recorded.
-            </p>
-          </div>
-          <span className="font-semibold text-red-900">Sort them out →</span>
-        </Link>
+      {/*
+        Anything wrong comes before anything merely informative, so the first
+        thing she reads is the thing that needs her.
+      */}
+      {(outstanding.length > 0 || pendingPayments.length > 0) && (
+        <div className="mb-10">
+          {outstanding.length > 0 && (
+            <NoticeLink
+              href="/distribution?view=outstanding"
+              tone="urgent"
+              title={
+                outstanding.length === 1
+                  ? "1 delivery did not get there"
+                  : `${outstanding.length} deliveries did not get there`
+              }
+              description="The bread could not be delivered, or nobody said what happened."
+              actionLabel="Sort them out"
+            />
+          )}
+
+          {pendingPayments.length > 0 && (
+            <NoticeLink
+              href="/payments"
+              tone="attention"
+              title={
+                pendingPayments.length === 1
+                  ? "1 customer says they have paid you"
+                  : `${pendingPayments.length} customers say they have paid you`
+              }
+              description="It does not count against what they owe until you say it arrived."
+              actionLabel="Check them"
+            />
+          )}
+        </div>
       )}
 
-      {pendingPayments.length > 0 && (
-        <Link
-          href="/payments"
-          className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-l-4 border-l-amber-500 bg-amber-50 px-6 py-5 hover:bg-amber-100"
-        >
-          <div>
-            <p className="text-lg font-bold text-amber-900">
-              {pendingPayments.length === 1
-                ? "1 customer says they have paid"
-                : `${pendingPayments.length} customers say they have paid`}
-            </p>
-            <p className="text-amber-800">
-              It does not count against what they owe until you confirm it.
-            </p>
-          </div>
-          <span className="font-semibold text-amber-900">Have a look →</span>
-        </Link>
-      )}
-
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatRow>
         <StatTile
           label="Bread to deliver"
           value={String(loavesToday)}
-          hint={`across ${orders.length} ${orders.length === 1 ? "order" : "orders"}`}
+          hint={`for ${orders.length} ${orders.length === 1 ? "customer" : "customers"}`}
         />
         <StatTile
           label="Deliveries done"
@@ -104,37 +102,42 @@ export default async function TodayPage() {
           hint={remaining > 0 ? `${remaining} still to go` : "All done"}
         />
         <StatTile
-          label="Value of today's bread"
+          label="Today's bread is worth"
           value={formatGhs(revenueToday)}
+          hint="If it all gets delivered"
         />
-        <StatTile label="Costs recorded today" value={formatGhs(costsToday)} />
+        <StatTile
+          label="Spent today"
+          value={formatGhs(costsToday)}
+          hint="Flour, gas, transport"
+        />
+      </StatRow>
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <SectionTitle>Who is getting bread today</SectionTitle>
+        <ButtonLink href="/distribution" variant="secondary">
+          Open the round
+        </ButtonLink>
       </div>
 
-      <Card>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <SectionTitle>Today&apos;s deliveries</SectionTitle>
-          <ButtonLink href="/distribution" variant="secondary">
-            Open the round
-          </ButtonLink>
-        </div>
-
-        {deliveries.length === 0 ? (
-          <EmptyState
-            title="Nothing to deliver today"
-            description="Orders you add for today will appear here."
-          />
-        ) : (
-          <ul className="divide-y divide-stone-200">
+      {deliveries.length === 0 ? (
+        <EmptyState
+          title="Nobody is expecting bread today"
+          description="Orders you add for today will show up here."
+        />
+      ) : (
+        <Card padded={false}>
+          <ul className="divide-y divide-stone-100">
             {deliveries.map((item) => (
               <li
                 key={item.delivery.id}
-                className="flex flex-wrap items-center justify-between gap-3 py-4"
+                className="flex flex-wrap items-center justify-between gap-3 px-6 py-4"
               >
                 <div>
-                  <p className="text-lg font-semibold text-stone-900">
+                  <p className="font-medium text-stone-900">
                     {item.customer.name}
                   </p>
-                  <p className="text-stone-500">
+                  <p className="text-stone-600">
                     {item.orderedQuantity} × {item.productName} ·{" "}
                     {item.customer.area}
                   </p>
@@ -158,19 +161,24 @@ export default async function TodayPage() {
               </li>
             ))}
           </ul>
-        )}
-      </Card>
+        </Card>
+      )}
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
-        <ButtonLink href="/orders/new" variant="secondary">
-          Add an order
-        </ButtonLink>
-        <ButtonLink href="/customers/new" variant="secondary">
-          Add a customer
-        </ButtonLink>
-        <ButtonLink href="/customers" variant="secondary">
-          Who owes money
-        </ButtonLink>
+      <div className="mt-12 border-t border-stone-200 pt-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          Other things you might do
+        </h2>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <ButtonLink href="/orders/new" variant="secondary">
+            Write down an order
+          </ButtonLink>
+          <ButtonLink href="/payments/new" variant="secondary">
+            Write down a payment
+          </ButtonLink>
+          <ButtonLink href="/customers" variant="secondary">
+            See who owes you
+          </ButtonLink>
+        </div>
       </div>
     </>
   );
