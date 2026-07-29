@@ -317,9 +317,15 @@ export function summariseReport(
     );
   }
 
+  // Called profit, plainly. It is revenue less what was spent over the same
+  // days and before wages, which the screen says underneath — but "left over"
+  // read as loose change rather than as the number the business runs on.
   sentences.push(
-    `You spent ${formatMoney(report.costPesewas)} on gas, ingredients and transport, ` +
-      `which leaves ${formatMoney(report.profitPesewas)} before wages.`,
+    report.profitPesewas < 0
+      ? `You spent ${formatMoney(report.costPesewas)} on gas, ingredients and transport, ` +
+          `which is ${formatMoney(-report.profitPesewas)} more than you earned, so this was a loss before wages.`
+      : `You spent ${formatMoney(report.costPesewas)} on gas, ingredients and transport, ` +
+          `leaving a profit of ${formatMoney(report.profitPesewas)} before wages.`,
   );
 
   if (report.outstandingPesewas > 0) {

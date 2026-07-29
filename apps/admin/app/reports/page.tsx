@@ -149,7 +149,7 @@ export default async function ReportsPage({
           hint="Gas, ingredients and transport"
         />
         <StatTile
-          label="Left over"
+          label={report.profitPesewas < 0 ? "Loss" : "Profit"}
           value={formatGhs(report.profitPesewas)}
           hint="Before wages"
         />
@@ -181,14 +181,16 @@ export default async function ReportsPage({
                     <th className="py-2 pr-4 font-medium">Day</th>
                     <th className="py-2 pr-4 text-right font-medium">Earned</th>
                     <th className="py-2 pr-4 text-right font-medium">Spent</th>
-                    <th className="py-2 pr-4 text-right font-medium">
-                      Left over
-                    </th>
+                    <th className="py-2 pr-4 text-right font-medium">Profit</th>
                     <th className="py-2 text-right font-medium">Loaves</th>
                   </tr>
                 </thead>
+                {/* Newest day first: she is nearly always looking for what
+                    just happened, not what happened three weeks ago. The chart
+                    above stays in time order, because a chart that ran
+                    backwards would be unreadable. */}
                 <tbody>
-                  {report.buckets.map((bucket) => (
+                  {[...report.buckets].reverse().map((bucket) => (
                     <tr key={bucket.key} className="border-b border-stone-100">
                       <td className="py-2 pr-4">{formatDate(bucket.key)}</td>
                       <td className="py-2 pr-4 text-right tabular-nums">
@@ -281,7 +283,7 @@ export default async function ReportsPage({
         <p>
           Things you buy count on the day you bought them, and{" "}
           <strong className="font-semibold text-stone-900">
-            &ldquo;left over&rdquo; does not take wages out
+            profit here does not take wages out
           </strong>
           . A cheque counts from the day you wrote it down, not the day the bank
           pays it.

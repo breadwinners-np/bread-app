@@ -121,6 +121,57 @@ real iPhone too, not only a real Android handset.
 Apple's yearly fee and review latency from that point on. Accepted, because the
 alternative is a permanent gap in who can use the app.
 
+## 0017 — Reports say "profit", and the day table reads newest first
+
+**Date:** 2026-07-29 · **Status:** Proposed · **Asked for by the owner's daughter**
+
+Revenue less costs was labelled **Left over** everywhere it appeared — a stat
+tile, a table column, and the written summary. It is now **Profit**, and **Loss**
+when it is negative, in which case the summary says so in words rather than
+printing a minus sign and leaving her to notice it.
+
+"Left over" was chosen to avoid claiming an accounting term the number does not
+earn: it does not subtract wages, and whether costs should be spread across the
+days a supply is used is still open (CST-3). But it read as loose change rather
+than as the number the business runs on, which understates it in the other
+direction. Profit, with "Before wages" written under it and the assumptions
+spelled out at the foot of the page, is the honest version of the plain word.
+
+**The caveat now lives next to the number rather than in the label.** If wages
+ever enter the costs, this label stops needing an asterisk at all.
+
+Separately, "Show the numbers" lists days **newest first**. She is nearly always
+looking for what just happened. The chart above it stays in time order — a chart
+that ran right to left would be unreadable.
+
+## 0016 — Orders and deliveries are read as a month, not as a list
+
+**Date:** 2026-07-29 · **Status:** Proposed · **Asked for by the owner's daughter**
+
+Orders opened as one long list of every order ever written down, newest first,
+and deliveries could only be reached a day at a time through previous/next
+arrows. Both now lead with a **month calendar**: each day shows what is going
+out on it, and tapping a day opens that day.
+
+The question these two screens actually get asked is "what is happening on that
+day" — by the owner planning the week, and by whoever stands in for her when she
+is not there. A list answers "find me one order", which is the rarer question,
+so it stays as a second tab on Orders rather than disappearing.
+
+The deliveries calendar carries a day's progress in words — *All done*, *4 still
+to do*, *1 could not be delivered* — so an unfinished day is visible without
+opening it. Colour repeats what the words already say and never carries it alone.
+
+One `MonthCalendar` component serves both screens: it knows about days, links,
+and a two-line summary, and nothing about bread. Each screen decides what its
+days count. The grid maths (`calendarWeeks`, `addMonths`) is pure and lives in
+`packages/shared`, so the phone app gets the same calendar for free.
+
+**Tradeoff:** a month view invites the question of what a *month* means for a
+wholesale customer who agrees a monthly quantity — which is still ORD-3, still
+unanswered, and this deliberately does not pretend to answer it. The calendar
+counts the day-by-day orders that exist today.
+
 ## 0015 — The admin app is shaped around the owner, not around the data
 
 **Date:** 2026-07-28 · **Status:** Proposed

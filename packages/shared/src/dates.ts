@@ -153,6 +153,75 @@ export function monthOf(iso: string): string {
   return iso.slice(0, 7);
 }
 
+/** Whether a string is a real calendar month in `YYYY-MM` form. */
+export function isValidIsoMonth(isoMonth: string): boolean {
+  return /^\d{4}-\d{2}$/.test(isoMonth) && isValidIsoDate(`${isoMonth}-01`);
+}
+
+/**
+ * Shift an ISO `YYYY-MM` by a number of months.
+ *
+ * Anchored to the first of the month, so there is no 31st-of-February rollover
+ * to guard against — a month plus one is always the next month.
+ */
+export function addMonths(isoMonth: string, months: number): string {
+  const date = new Date(`${isoMonth}-01T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return isoMonth;
+
+  date.setUTCMonth(date.getUTCMonth() + months);
+  return date.toISOString().slice(0, 7);
+}
+
+/** Column headings for a calendar grid, in the order `calendarWeeks` returns. */
+export const WEEKDAY_SHORT_NAMES = [
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+  "Sun",
+] as const;
+
+export interface CalendarDay {
+  date: string;
+  /** False for the days either side that only fill out the first and last row. */
+  inMonth: boolean;
+}
+
+/**
+ * A month laid out as calendar rows, Monday to Sunday.
+ *
+ * Always whole weeks, so the grid is a rectangle: the first row reaches back
+ * into the previous month and the last reaches into the next, both flagged
+ * `inMonth: false`. Returns an empty array for a month that does not exist.
+ */
+export function calendarWeeks(isoMonth: string): CalendarDay[][] {
+  if (!isValidIsoMonth(isoMonth)) return [];
+
+  const first = `${isoMonth}-01`;
+  const gridEnd = addDays(startOfWeek(endOfMonth(first)), 6);
+
+  const weeks: CalendarDay[][] = [];
+  let cursor = startOfWeek(first);
+
+  while (cursor <= gridEnd) {
+    const week: CalendarDay[] = [];
+    for (let index = 0; index < 7; index += 1) {
+      week.push({ date: cursor, inMonth: monthOf(cursor) === isoMonth });
+      cursor = addDays(cursor, 1);
+    }
+    weeks.push(week);
+  }
+
+  return weeks;
+}
+
+/** The day number a date falls on, for a calendar cell. */
+export function dayOfMonth(iso: string): number {
+  return Number(iso.slice(8, 10));
+}
+
 /** Format an ISO `YYYY-MM` as e.g. `July 2026`. */
 export function formatMonth(isoMonth: string): string {
   const [year, month] = isoMonth.split("-");
