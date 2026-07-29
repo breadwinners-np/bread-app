@@ -31,12 +31,13 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
- * Orders, as a month at a glance.
+ * Orders, as a list first and a calendar second.
  *
- * The calendar is the way in, because the question being asked of this screen
- * is almost always "what is going out on that day" — by the owner planning, or
- * by whoever is standing in for her. Tapping a day opens that day. The flat
- * list of every order is still there behind a tab, for finding one order.
+ * The list is what the screen opens on: it answers "what have I written down"
+ * without asking her to pick a day first, and everything on it is one glance
+ * from the top. The calendar sits one click away for the other question —
+ * "what is going out on that day" — which is what somebody standing in for her
+ * needs, and tapping a day there opens that day.
  */
 export default async function OrdersPage({
   searchParams,
@@ -51,7 +52,7 @@ export default async function OrdersPage({
   const openDate = date && isValidIsoDate(date) ? date : null;
   const activeMonth =
     month && isValidIsoMonth(month) ? month : monthOf(openDate ?? today);
-  const showList = view === "list";
+  const showCalendar = view === "calendar";
 
   if (openDate) {
     return <DayView date={openDate} today={today} />;
@@ -61,23 +62,27 @@ export default async function OrdersPage({
     <>
       <PageHeader
         title="Orders"
-        subtitle="Tap a day to see everything going out on it"
+        subtitle={
+          showCalendar
+            ? "Tap a day to see everything going out on it"
+            : "Everything written down, latest delivery day first"
+        }
         action={<ButtonLink href="/orders/new">Write down an order</ButtonLink>}
       />
 
       <div className="mb-8 flex flex-wrap gap-6 border-b border-stone-200">
-        <Tab href="/orders" active={!showList}>
-          Calendar
-        </Tab>
-        <Tab href="/orders?view=list" active={showList}>
+        <Tab href="/orders" active={!showCalendar}>
           Every order
+        </Tab>
+        <Tab href="/orders?view=calendar" active={showCalendar}>
+          Calendar
         </Tab>
       </div>
 
-      {showList ? (
-        <ListView />
-      ) : (
+      {showCalendar ? (
         <CalendarView month={activeMonth} today={today} />
+      ) : (
+        <ListView />
       )}
 
       <QuestionForYou>
@@ -128,6 +133,7 @@ async function CalendarView({ month, today }: { month: string; today: string }) 
           cells={cells}
           today={today}
           basePath="/orders"
+          baseQuery="view=calendar"
         />
       </Card>
 
@@ -158,7 +164,10 @@ async function DayView({ date, today }: { date: string; today: string }) {
       />
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        <ButtonLink href={`/orders?month=${monthOf(date)}`} variant="secondary">
+        <ButtonLink
+          href={`/orders?view=calendar&month=${monthOf(date)}`}
+          variant="secondary"
+        >
           ← Back to the calendar
         </ButtonLink>
         <ButtonLink href={`/distribution?date=${date}`} variant="secondary">

@@ -150,15 +150,17 @@ that ran right to left would be unreadable.
 
 **Date:** 2026-07-29 · **Status:** Proposed · **Asked for by the owner's daughter**
 
-Orders opened as one long list of every order ever written down, newest first,
-and deliveries could only be reached a day at a time through previous/next
-arrows. Both now lead with a **month calendar**: each day shows what is going
-out on it, and tapping a day opens that day.
+Orders could only be read as one long list of every order ever written down, and
+deliveries only a day at a time through previous/next arrows. Both now have a
+**month calendar**: each day shows what is going out on it, and tapping a day
+opens that day.
 
-The question these two screens actually get asked is "what is happening on that
-day" — by the owner planning the week, and by whoever stands in for her when she
-is not there. A list answers "find me one order", which is the rarer question,
-so it stays as a second tab on Orders rather than disappearing.
+**Which one each screen opens on differs, deliberately.** Deliveries opens on
+the day's round, because that is the screen she works through every morning.
+Orders opens on the **list**, because it answers "what have I written down"
+without making her pick a day first; its calendar is one click away for the
+other question — "what is going out that day" — which is mostly what somebody
+standing in for her needs.
 
 The deliveries calendar carries a day's progress in words — *All done*, *4 still
 to do*, *1 could not be delivered* — so an unfinished day is visible without
