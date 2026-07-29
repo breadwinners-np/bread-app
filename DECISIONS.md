@@ -95,19 +95,21 @@ midnight local.
 **Date:** 2026-07-29 · **Status:** Proposed · **Asked for by the owner's daughter**
 
 Revenue less costs was labelled **Left over** everywhere it appeared — a stat
-tile, a table column, and the written summary. It is now **Profit**, and **Loss**
-when it is negative, in which case the summary says so in words rather than
-printing a minus sign and leaving her to notice it.
+tile, a table column, and the written summary. It is now **Profit before wages**,
+and **Loss before wages** when it is negative, in which case the summary says so
+in words rather than printing a minus sign and leaving her to notice it.
 
 "Left over" was chosen to avoid claiming an accounting term the number does not
 earn: it does not subtract wages, and whether costs should be spread across the
 days a supply is used is still open (CST-3). But it read as loose change rather
 than as the number the business runs on, which understates it in the other
-direction. Profit, with "Before wages" written under it and the assumptions
-spelled out at the foot of the page, is the honest version of the plain word.
+direction.
 
-**The caveat now lives next to the number rather than in the label.** If wages
-ever enter the costs, this label stops needing an asterisk at all.
+**The caveat is in the label, not under it.** "Profit" on its own invites her to
+read it as money she can take home, and a hint underneath is the first thing a
+reader skips. Naming it in full costs three words and cannot be misread. If
+wages ever enter the costs, the label loses its second half and nothing else
+changes.
 
 Separately, "Show the numbers" lists days **newest first**. She is nearly always
 looking for what just happened. The chart above it stays in time order — a chart

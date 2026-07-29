@@ -148,10 +148,15 @@ export default async function ReportsPage({
           value={formatGhs(report.costPesewas)}
           hint="Gas, ingredients and transport"
         />
+        {/* The caveat is in the label rather than under it: "Profit" alone
+            invites her to read it as money she can take home, and wages are
+            not in it. */}
         <StatTile
-          label={report.profitPesewas < 0 ? "Loss" : "Profit"}
+          label={
+            report.profitPesewas < 0 ? "Loss before wages" : "Profit before wages"
+          }
           value={formatGhs(report.profitPesewas)}
-          hint="Before wages"
+          hint="Money earned less what you spent"
         />
         <StatTile
           label="Still unpaid"
@@ -181,7 +186,9 @@ export default async function ReportsPage({
                     <th className="py-2 pr-4 font-medium">Day</th>
                     <th className="py-2 pr-4 text-right font-medium">Earned</th>
                     <th className="py-2 pr-4 text-right font-medium">Spent</th>
-                    <th className="py-2 pr-4 text-right font-medium">Profit</th>
+                    <th className="py-2 pr-4 text-right font-medium">
+                      Profit before wages
+                    </th>
                     <th className="py-2 text-right font-medium">Loaves</th>
                   </tr>
                 </thead>
