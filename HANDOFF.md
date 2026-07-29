@@ -9,8 +9,6 @@ Read this file first, then [CLAUDE.md](CLAUDE.md) for the rules and
 tells you where things stand and what happens next; the other two tell you how
 to work and why things are the way they are.
 
-**If you have not cloned the repository yet, start with section 8 at the end.**
-
 If you are Claude and you were handed this file: an admin **prototype** exists,
 running entirely on in-memory mock data. There is **no database, no schema, and
 no authentication**. Verify what is actually present before you build, and see
@@ -85,7 +83,6 @@ packages/shared/       @bread/shared — types, zod schemas, money/date helpers,
 CLAUDE.md              architecture rules and a "do not" list
 DECISIONS.md           numbered decision log + open business questions
 HANDOFF.md             this file
-TEAMMATE-SETUP.md      onboarding for the second teammate
 ```
 
 Run it with `npm install && npm run dev` from the repo root, then open
@@ -123,15 +120,8 @@ and will not run yet.
 - Repo: `github.com/breadwinners-np/bread-app`, private, owned by the
   `breadwinners-np` organization. Both teammates are **organization owners**,
   so both have complete and equal access.
-- `main` is at the initial commit and contains only `.gitignore` and
-  `README.md`.
-- All the documentation lives on the branch **`chore/project-setup-docs`**,
-  which is pushed but **not yet merged**. If you cannot see `DECISIONS.md` on
-  the repo landing page, that is why — switch branches or merge the PR.
-- The GitHub CLI (`gh`) is not installed on the first teammate's machine, so
-  pull requests and issues are being created through the web UI.
-- There is a stray empty file named `app` at the repo root, left over from an
-  editor slip. It is untracked and can be deleted.
+- `main` holds the documentation and the admin prototype. Setup instructions
+  are in [README.md](README.md).
 
 ---
 
@@ -268,93 +258,3 @@ Written for whichever Claude session picks this up:
 - **Do not treat this file as current forever.** It is a snapshot from
   2026-07-25. DECISIONS.md is the living record; if the two disagree, DECISIONS.md
   wins.
-
----
-
-## 8. Cloning and first-time setup
-
-The one thing that catches people out: **`main` is nearly empty.** Every document
-lives on the `chore/project-setup-docs` branch until that branch is merged. If
-you clone and see only a README, that is why — see step 4.
-
-### 1. Accept the organization invite
-
-Check your email, or go to https://github.com/orgs/breadwinners-np/invitation.
-You cannot clone a private repository until you are a member.
-
-### 2. Install prerequisites
-
-macOS:
-
-```bash
-brew install git gh
-```
-
-On Windows use [git-scm.com](https://git-scm.com) and
-[cli.github.com](https://cli.github.com); on Linux use your package manager.
-
-### 3. Authenticate with GitHub
-
-```bash
-gh auth login
-```
-
-Choose **GitHub.com** → **HTTPS** → **Login with a web browser**, then paste the
-one-time code. This is the least painful route for a private repository — it
-stores credentials so plain `git` commands work afterwards. SSH keys or a
-personal access token work equally well if you already have them.
-
-### 4. Clone and switch to the branch
-
-```bash
-cd ~/Desktop
-git clone https://github.com/breadwinners-np/bread-app.git
-cd bread-app
-git checkout chore/project-setup-docs
-```
-
-The checkout matters. `main` holds only `.gitignore` and `README.md`.
-
-### 5. Verify
-
-```bash
-ls -la
-git status -sb
-```
-
-You should see `CLAUDE.md`, `DECISIONS.md`, `HANDOFF.md`, `README.md`, and
-`.gitignore`, and the branch line should read
-`## chore/project-setup-docs...origin/chore/project-setup-docs`. If `HANDOFF.md`
-is missing, the checkout in step 4 did not take.
-
-### 6. Set your commit identity
-
-```bash
-git config user.name "Your Name"
-git config user.email "your@email.com"
-```
-
-### 7. Read the documents
-
-`HANDOFF.md` first, then `CLAUDE.md` for the working rules, then `DECISIONS.md`
-for the reasoning.
-
-**Do not run `npm install`** — there is no `package.json` yet. Nothing is
-scaffolded.
-
-### 8. If you are using Claude Code
-
-```bash
-npm install -g @anthropic-ai/claude-code
-cd ~/Desktop/bread-app
-claude
-```
-
-Then tell it: *"Read HANDOFF.md and CLAUDE.md before doing anything."* Claude
-Code picks up `CLAUDE.md` automatically but not this handoff.
-
-### 9. Confirm your access level
-
-Check https://github.com/orgs/breadwinners-np/people and confirm you are listed
-as **Owner**, not Member. Member grants clone and push but not settings or
-access management, which is not the parity this setup intends.

@@ -50,8 +50,8 @@ need and ships raw TypeScript, so there is no build step to run before using it.
 ## Cloning the repository
 
 The repository is private and owned by the `breadwinners-np` organization, so
-accept your invite first — check your email or visit
-https://github.com/orgs/breadwinners-np/invitation.
+you need to be a member before you can clone it. Ask an organization owner for
+an invite if you have not had one.
 
 Install git and the GitHub CLI, then authenticate. On macOS:
 
@@ -74,14 +74,6 @@ git clone https://github.com/breadwinners-np/bread-app.git
 cd bread-app
 git config user.name "Your Name"
 git config user.email "your@email.com"
-```
-
-Confirm you have the documents — `ls` should show `CLAUDE.md`, `DECISIONS.md`,
-`HANDOFF.md`, and this README. If they are missing, they are still on an
-unmerged branch:
-
-```bash
-git checkout chore/project-setup-docs
 ```
 
 New to the project? Read [HANDOFF.md](HANDOFF.md) first — it is the full context
