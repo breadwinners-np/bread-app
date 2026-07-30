@@ -13,7 +13,7 @@ Two client apps, one Supabase database:
 
 - **Admin web app** (`apps/admin`) — used only by the owner, on a laptop. Orders,
   daily distribution, costs, payments, reports.
-- **Buyer mobile app** (`apps/mobile`) — used by customers on Android phones.
+- **Buyer mobile app** (`apps/mobile`) — used by customers on Android and iPhone.
   Placing orders, paying, and confirming monthly wholesale quantities.
 
 The two apps never call each other. They share the database. A customer order
@@ -43,7 +43,9 @@ placed on a phone reaches the owner's screen through Supabase realtime.
 
 - **TypeScript everywhere**, plus SQL in the database.
 - **Admin**: Next.js (App Router), React, Tailwind CSS. Hosted on Vercel.
-- **Mobile**: Expo + React Native. Android first, iOS later.
+- **Mobile**: Expo + React Native. Android and iOS are both supported targets.
+  Android ships first because it is most of the customer base and the cheaper
+  release path, but no code may assume Android.
 - **Backend**: Supabase — Postgres, phone OTP auth, storage for cheque and
   receipt photos, auto-generated API, realtime, and row-level security.
 - **Offline sync**: on-device SQLite kept in sync with Supabase. PowerSync preferred.
@@ -242,4 +244,5 @@ not a shared decision.
 - Do not push directly to `main`.
 - Do not expose costs, profit, or margin data to any customer-facing surface.
 - Do not assume network availability on any mobile screen used during delivery.
+- Do not add a mobile dependency or native module that only works on Android.
 - Do not invent business rules to unblock yourself.
