@@ -29,8 +29,8 @@ through Supabase realtime.
 
 - **Admin web app** — used only by the owner, on a laptop. Orders, daily
   distribution, costs, payments, reports.
-- **Buyer mobile app** — used by customers on Android phones. Ordering, paying,
-  and confirming monthly wholesale quantities.
+- **Buyer mobile app** — used by customers on Android phones and iPhones.
+  Ordering, paying, and confirming monthly wholesale quantities.
 
 ### The business
 
@@ -56,7 +56,8 @@ through Supabase realtime.
 ### Stack
 
 TypeScript everywhere plus SQL. Next.js App Router + React + Tailwind on Vercel
-for admin. Expo + React Native, Android first, for mobile. Supabase for
+for admin. Expo + React Native targeting both Android and iOS, Android released
+first, for mobile. Supabase for
 Postgres, phone OTP auth, storage for cheque and receipt photos, realtime, and
 row-level security. On-device SQLite synced with Supabase for offline, PowerSync
 preferred. Cash and cheque recorded manually in v1; Paystack mobile money later.
@@ -156,9 +157,12 @@ disagreeing after the database exists. Say so if you disagree.
   no `next/*`, no Node built-ins, no I/O. Types, Zod schemas, constants, and
   pure functions only.
 - Vercel's root directory must be set to `apps/admin`.
-- PowerSync needs a custom dev build and a physical Android device; Expo Go will
-  not work. It is also a paid service beyond a free tier. Alternatives if that
-  is unattractive: Expo SQLite with a hand-rolled sync queue, or WatermelonDB.
+- PowerSync needs a custom dev build and a physical device on each platform;
+  Expo Go will not work. It is also a paid service beyond a free tier.
+  Alternatives if that is unattractive: Expo SQLite with a hand-rolled sync
+  queue, or WatermelonDB.
+- iOS adds a Mac with Xcode, an Apple Developer Program membership at $99/year,
+  and App Store review to every release. Android needs neither. See 0018.
 
 ---
 

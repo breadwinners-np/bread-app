@@ -90,6 +90,37 @@ midnight local.
 
 ---
 
+## 0018 — The buyer app targets iOS as well as Android
+
+**Date:** 2026-07-30 · **Status:** Proposed
+
+Earlier docs said "Android first, iOS later", which in practice reads as "iOS
+maybe never". The owner has customers on iPhones, so a buyer app that only runs
+on Android leaves paying customers on the phone-and-text channel indefinitely.
+Both platforms are now supported targets.
+
+**This costs almost nothing in code, and something real in release process.**
+Expo and React Native are already cross-platform, and nothing in `apps/mobile`
+exists yet to port — the app has not been started. What iOS actually adds is a
+Mac with Xcode, an Apple Developer Program membership at $99/year, and App Store
+review standing between a fix and the customer holding the phone. Android has no
+review queue and can be sideloaded as an APK for a pilot customer.
+
+**So: build for both, release Android first.** Not because iOS is second class,
+but because Android is most of the customer base in Accra, and because shipping
+to one Baatsonaa Total pilot on Android validates offline sync and OTP auth
+before we pay for a developer account. Every screen, dependency, and native
+module gets chosen so it runs on both from the day it is written. No Android-only
+native modules, no Android-only assumptions in layout or permissions flows.
+
+**Open cost we have not priced:** PowerSync (0006) needs a custom dev build and a
+physical device on each platform, so offline sync now has to be exercised on a
+real iPhone too, not only a real Android handset.
+
+**Tradeoff:** iPhone customers wait for the second release, and the team carries
+Apple's yearly fee and review latency from that point on. Accepted, because the
+alternative is a permanent gap in who can use the app.
+
 ## 0015 — The admin app is shaped around the owner, not around the data
 
 **Date:** 2026-07-28 · **Status:** Proposed

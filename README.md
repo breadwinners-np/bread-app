@@ -12,7 +12,7 @@ and a single shared database.
 | App | Who uses it | Where | What it does |
 | --- | --- | --- | --- |
 | `apps/admin` | The owner (sole administrator) | Laptop, web | Orders, daily distribution, costs, payments, reports |
-| `apps/mobile` | Wholesale and retail customers | Android phones | Place orders, pay, confirm monthly quantities |
+| `apps/mobile` | Wholesale and retail customers | Android phones and iPhones | Place orders, pay, confirm monthly quantities |
 
 The apps never talk to each other. They share one Supabase database, and orders
 placed on a phone reach the owner's screen in near real time through Supabase
@@ -22,7 +22,7 @@ realtime.
 
 - TypeScript everywhere, plus SQL
 - **Admin** — Next.js (App Router), React, Tailwind CSS, deployed to Vercel
-- **Mobile** — Expo + React Native, Android first
+- **Mobile** — Expo + React Native, Android and iOS, Android released first
 - **Backend** — Supabase: Postgres, phone OTP auth, file storage, realtime, and
   row-level security
 - **Offline** — on-device SQLite synced with Supabase, so daily distribution
@@ -119,7 +119,8 @@ npm run lint
 The mobile app and the database do not exist. Once the schema questions in
 [DECISIONS.md](DECISIONS.md) are answered, this is roughly what setup will
 become — Docker and the [Supabase CLI](https://supabase.com/docs/guides/cli) for
-the database, Android Studio or a device for the mobile app:
+the database, Android Studio or a device for the mobile app (plus Xcode on a Mac
+once iOS builds start):
 
 ```bash
 cp .env.example .env
