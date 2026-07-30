@@ -15,6 +15,13 @@ import { usePathname } from "next/navigation";
  * two screens for one idea, one of them permanently badged "soon"). Those
  * labels are plain enough to stand alone, so there is no second line of
  * explanation under each — seven of those was most of the noise in here.
+ *
+ * **Hover is deliberately obvious.** These items are plain text on white, which
+ * reads as a label rather than a control, and the owner is not a confident
+ * mouse user. Three things move together on hover — the row fills, the words
+ * darken, and the icon darkens — because one faint tint was easy to miss. The
+ * page she is on stays one step darker still, so "where I am" never looks the
+ * same as "what I am pointing at".
  */
 
 interface NavItem {
@@ -82,14 +89,18 @@ export function Sidebar() {
                       href={item.href}
                       aria-current={active ? "page" : undefined}
                       className={[
-                        "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
+                        "group flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
                         active
-                          ? "bg-stone-100 font-medium text-stone-900"
-                          : "text-stone-600 hover:bg-stone-50 hover:text-stone-900",
+                          ? "bg-stone-200 font-medium text-stone-900"
+                          : "text-stone-600 hover:bg-stone-100 hover:text-stone-900",
                       ].join(" ")}
                     >
                       <span
-                        className={active ? "text-stone-900" : "text-stone-400"}
+                        className={
+                          active
+                            ? "text-stone-900"
+                            : "text-stone-400 transition-colors group-hover:text-stone-700"
+                        }
                       >
                         {item.icon}
                       </span>

@@ -148,10 +148,15 @@ export default async function ReportsPage({
           value={formatGhs(report.costPesewas)}
           hint="Gas, ingredients and transport"
         />
+        {/* The caveat is in the label rather than under it: "Profit" alone
+            invites her to read it as money she can take home, and wages are
+            not in it. */}
         <StatTile
-          label="Left over"
+          label={
+            report.profitPesewas < 0 ? "Loss before wages" : "Profit before wages"
+          }
           value={formatGhs(report.profitPesewas)}
-          hint="Before wages"
+          hint="Money earned less what you spent"
         />
         <StatTile
           label="Still unpaid"
@@ -182,13 +187,17 @@ export default async function ReportsPage({
                     <th className="py-2 pr-4 text-right font-medium">Earned</th>
                     <th className="py-2 pr-4 text-right font-medium">Spent</th>
                     <th className="py-2 pr-4 text-right font-medium">
-                      Left over
+                      Profit before wages
                     </th>
                     <th className="py-2 text-right font-medium">Loaves</th>
                   </tr>
                 </thead>
+                {/* Newest day first: she is nearly always looking for what
+                    just happened, not what happened three weeks ago. The chart
+                    above stays in time order, because a chart that ran
+                    backwards would be unreadable. */}
                 <tbody>
-                  {report.buckets.map((bucket) => (
+                  {[...report.buckets].reverse().map((bucket) => (
                     <tr key={bucket.key} className="border-b border-stone-100">
                       <td className="py-2 pr-4">{formatDate(bucket.key)}</td>
                       <td className="py-2 pr-4 text-right tabular-nums">
@@ -281,7 +290,7 @@ export default async function ReportsPage({
         <p>
           Things you buy count on the day you bought them, and{" "}
           <strong className="font-semibold text-stone-900">
-            &ldquo;left over&rdquo; does not take wages out
+            profit here does not take wages out
           </strong>
           . A cheque counts from the day you wrote it down, not the day the bank
           pays it.
