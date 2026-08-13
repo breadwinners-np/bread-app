@@ -1,9 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { buttonClass, type ButtonVariant } from "@/components/ui";
+
+/**
+ * Lets the fields inside a confirmation panel hold its button back.
+ *
+ * Some panels ask for something the browser cannot check on its own — "at
+ * least one loaf across all these boxes" is not a rule HTML has. Without this
+ * the submission goes to the server, fails validation there, and the action
+ * returns having done nothing, which reads to her as a button that does not
+ * work.
+ */
+const ConfirmGuard = createContext<(allowed: boolean) => void>(() => {});
+
+/** Call from inside a ConfirmButton's children to gate its confirm button. */
+export function useConfirmGuard(allowed: boolean): void {
+  const setAllowed = useContext(ConfirmGuard);
+
+  useEffect(() => {
+    setAllowed(allowed);
+    // Re-open the button if these fields go away.
+    return () => setAllowed(true);
+  }, [allowed, setAllowed]);
+}
 
 /**
  * A button that asks before it acts.
@@ -43,6 +65,7 @@ export function ConfirmButton({
   children?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [allowed, setAllowed] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Move focus into the panel when it opens, so the keyboard lands on the
@@ -76,7 +99,11 @@ export function ConfirmButton({
     >
       <p className="font-medium text-stone-900">{question}</p>
 
-      {children && <div className="mt-3">{children}</div>}
+      {children && (
+        <ConfirmGuard.Provider value={setAllowed}>
+          <div className="mt-3">{children}</div>
+        </ConfirmGuard.Provider>
+      )}
 
       <div className="mt-4 flex flex-wrap gap-3">
         <SubmitButton
@@ -84,6 +111,7 @@ export function ConfirmButton({
           value={value}
           variant={confirmVariant}
           label={confirmLabel}
+          allowed={allowed}
         />
         <button
           type="button"
@@ -106,11 +134,14 @@ function SubmitButton({
   value,
   variant,
   label,
+  allowed = true,
 }: {
   name?: string;
   value?: string;
   variant: ButtonVariant;
   label: string;
+  /** False while the panel's own fields say the answer is not usable yet. */
+  allowed?: boolean;
 }) {
   const { pending } = useFormStatus();
 
@@ -119,7 +150,7 @@ function SubmitButton({
       type="submit"
       name={name}
       value={value}
-      disabled={pending}
+      disabled={pending || !allowed}
       className={buttonClass(variant)}
     >
       {pending ? "Saving…" : label}

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { formatDate, formatGhs } from "@bread/shared";
 
+import { getSessionCustomerId } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 // A dynamic segment with no generateStaticParams caches indefinitely, so a
@@ -14,9 +15,9 @@ interface OrderRow {
   id: string;
   delivery_date: string;
   delivery_note: string | null;
+  delivery_address: string | null;
   payment_method: "card" | "mobile_money" | "cash" | "cheque" | null;
   payment_status: "pending" | "paid" | "failed" | null;
-  payment_reference: string | null;
   total_pesewas: number | null;
   customers: { name: string; phone: string } | null;
   order_items: {
@@ -27,47 +28,36 @@ interface OrderRow {
   }[];
 }
 
-const ORDER_SELECT =
-  "id, delivery_date, delivery_note, payment_method, payment_status, payment_reference, total_pesewas, customers(name, phone), order_items(id, product_name, unit_price_pesewas, quantity)";
-
 export default async function OrderConfirmationPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const customerId = await getSessionCustomerId();
 
-  // The order id is an unguessable UUID acting as the access token for this
-  // page — there is no customer login yet to check ownership against. Fine for
-  // a link the customer just followed themselves; a production version should
-  // scope this to an authenticated customer, per CLAUDE.md's phone-OTP plan.
+  if (!customerId) notFound();
+
+  // Scoped to the signed-in customer, so an order id is no longer enough to
+  // read somebody else's order. It used to be: the id was the only key, on the
+  // grounds that a customer had just followed the link themselves.
   const { data: order } = await supabaseAdmin
     .from("orders")
-    .select(ORDER_SELECT)
+    .select(
+      "id, delivery_date, delivery_note, delivery_address, payment_method, payment_status, total_pesewas, customers(name, phone), order_items(id, product_name, unit_price_pesewas, quantity)",
+    )
     .eq("id", id)
+    .eq("customer_id", customerId)
+    .order("position", { referencedTable: "order_items", ascending: true })
     .maybeSingle<OrderRow>();
 
   if (!order) {
     notFound();
   }
 
-  // A basket with several breads becomes one order per bread, all paid in one
-  // go and sharing a payment reference. Show the whole basket, not one bread.
-  let orders: OrderRow[] = [order];
-  if (order.payment_reference) {
-    const { data: siblings } = await supabaseAdmin
-      .from("orders")
-      .select(ORDER_SELECT)
-      .eq("payment_reference", order.payment_reference)
-      .order("id")
-      .returns<OrderRow[]>();
-
-    if (siblings && siblings.length > 0) orders = siblings;
-  }
-
   const customer = order.customers;
   const paid = order.payment_status === "paid";
-  const items = orders.flatMap((entry) => entry.order_items ?? []);
+  const items = order.order_items ?? [];
   const total = items.reduce(
     (sum, item) => sum + item.unit_price_pesewas * item.quantity,
     0,
@@ -90,6 +80,12 @@ export default async function OrderConfirmationPage({
         <dl className="grid grid-cols-2 gap-y-2 text-sm">
           <dt className="text-stone-500">Delivery day</dt>
           <dd className="text-right text-stone-900">{formatDate(order.delivery_date)}</dd>
+          {order.delivery_address ? (
+            <>
+              <dt className="text-stone-500">Going to</dt>
+              <dd className="text-right text-stone-900">{order.delivery_address}</dd>
+            </>
+          ) : null}
           <dt className="text-stone-500">Payment</dt>
           <dd className="text-right capitalize text-stone-900">
             {order.payment_status ?? "pending"}
@@ -125,9 +121,14 @@ export default async function OrderConfirmationPage({
         </div>
       </div>
 
-      <Link href="/" className="inline-block text-amber-800 underline">
-        Order more bread
-      </Link>
+      <div className="flex flex-wrap gap-4">
+        <Link href="/" className="text-amber-800 underline">
+          Order more bread
+        </Link>
+        <Link href="/account" className="text-amber-800 underline">
+          All your orders
+        </Link>
+      </div>
     </div>
   );
 }

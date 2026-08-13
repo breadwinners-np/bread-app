@@ -62,6 +62,8 @@ export async function createCustomer(input: CustomerInput): Promise<Customer> {
       phone: input.phone,
       type: input.type,
       area: input.area,
+      address: input.address ?? null,
+      email: input.email || null,
       notes: input.notes ?? null,
     })
     .select("id")
@@ -81,6 +83,8 @@ export async function createCustomer(input: CustomerInput): Promise<Customer> {
     phone: input.phone,
     type: input.type,
     area: input.area,
+    address: input.address,
+    email: input.email || undefined,
     notes: input.notes,
     archivedAt: null,
   };

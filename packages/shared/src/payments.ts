@@ -45,26 +45,15 @@ export function isAwaitingConfirmation(payment: Payment): boolean {
 /**
  * What arrived, valued at the order's snapshotted prices.
  *
- * The delivery records one total quantity, so it is filled against the order's
- * lines in order until it runs out. With one bread type per order (decision
- * 0010) that is exact; if orders ever carry several types, ORD-12 has to say
- * which bread a short drop was short of.
+ * Each bread carries its own delivered quantity, so this is exact even when an
+ * order holds several breads at different prices. It used to fill the lines in
+ * order from a single total, which was only exact while an order held one
+ * bread (decision 0010, superseded by 0026).
  */
-export function deliveredValuePesewas(
-  order: Order,
-  delivery: Delivery,
-): number {
-  let remaining = delivery.deliveredQuantity;
-  let value = 0;
-
-  for (const line of order.lines) {
-    if (remaining <= 0) break;
-    const taken = Math.min(line.quantity, remaining);
-    value += taken * line.unitPricePesewas;
-    remaining -= taken;
-  }
-
-  return value;
+export function deliveredValuePesewas(order: Order): number {
+  return sumPesewas(
+    order.lines.map((line) => line.deliveredQuantity * line.unitPricePesewas),
+  );
 }
 
 /** What an order is owed right now, given how its delivery went. */
@@ -78,7 +67,7 @@ export function orderAmountDuePesewas(
     case "delivered":
       return orderTotalPesewas(order);
     case "partial":
-      return deliveredValuePesewas(order, delivery);
+      return deliveredValuePesewas(order);
     case "not_delivered":
     case "pending":
       // Nothing arrived, so nothing is owed yet. If it is rescheduled the same

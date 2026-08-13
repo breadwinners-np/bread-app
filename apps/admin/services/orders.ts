@@ -12,16 +12,22 @@ import {
   type Customer,
   type Order,
   type OrderInput,
-  type Product,
 } from "@bread/shared";
 
 import { supabase } from "@/lib/supabase";
 import { loadCustomers, loadOrders, loadProducts } from "./loaders";
 
+/**
+ * An order with the little the screen needs around it.
+ *
+ * The breads are read straight off `order.lines`, which carry their own
+ * snapshotted names — so listing orders no longer loads the product table at
+ * all, and a bread that was renamed still reads as it did on the day.
+ */
 export interface OrderWithContext {
   order: Order;
   customerName: string;
-  productName: string;
+  /** Total loaves across every bread on the order. */
   quantity: number;
   totalPesewas: number;
 }
@@ -66,66 +72,57 @@ export async function listOrderDaysForMonth(
 }
 
 export async function listOrders(): Promise<OrderWithContext[]> {
-  const [orders, customers, products] = await Promise.all([
-    loadOrders(),
-    loadCustomers(),
-    loadProducts(),
-  ]);
+  const [orders, customers] = await Promise.all([loadOrders(), loadCustomers()]);
 
-  return orders.map((order) => withContext(order, customers, products));
+  return orders.map((order) => withContext(order, customers));
 }
 
 export async function listOrdersForDate(date: string): Promise<OrderWithContext[]> {
-  const [orders, customers, products] = await Promise.all([
-    loadOrders(),
-    loadCustomers(),
-    loadProducts(),
-  ]);
+  const [orders, customers] = await Promise.all([loadOrders(), loadCustomers()]);
 
   return orders
     .filter((order) => order.deliveryDate === date)
-    .map((order) => withContext(order, customers, products));
+    .map((order) => withContext(order, customers));
 }
 
 export async function listOrdersForCustomer(
   customerId: string,
 ): Promise<OrderWithContext[]> {
-  const [orders, customers, products] = await Promise.all([
-    loadOrders(),
-    loadCustomers(),
-    loadProducts(),
-  ]);
+  const [orders, customers] = await Promise.all([loadOrders(), loadCustomers()]);
 
   return orders
     .filter((order) => order.customerId === customerId)
-    .map((order) => withContext(order, customers, products));
+    .map((order) => withContext(order, customers));
 }
 
 export async function createOrder(input: OrderInput): Promise<string> {
   const products = await loadProducts();
 
-  const product = products.find((entry) => entry.id === input.productId);
-  if (!product) {
-    throw new Error("That product does not exist");
-  }
+  const lines = input.lines.map((line) => {
+    const product = products.find((entry) => entry.id === line.productId);
+    if (!product) {
+      throw new Error("That product does not exist");
+    }
 
-  // One call, so the order, its lines and its delivery all exist or none of
-  // them do. An order without a delivery silently drops off the day's round
+    return {
+      product_id: product.id,
+      product_name: product.name,
+      // Price snapshotted at order time (decision 0004) — a later price
+      // change must never rewrite what this order was worth.
+      unit_price_pesewas: product.pricePesewas,
+      quantity: line.quantity,
+    };
+  });
+
+  // One call, so the order, all its breads and its delivery all exist or none
+  // of them do. An order without a delivery silently drops off the day's round
   // while still counting toward what the customer owes.
   const { data, error } = await supabase.rpc("place_order", {
     p_customer_id: input.customerId,
     p_delivery_date: input.deliveryDate,
     p_source: "admin",
-    p_lines: [
-      {
-        product_id: product.id,
-        product_name: product.name,
-        // Price snapshotted at order time (decision 0004) — a later price
-        // change must never rewrite what this order was worth.
-        unit_price_pesewas: product.pricePesewas,
-        quantity: input.quantity,
-      },
-    ],
+    p_lines: lines,
+    p_delivery_address: input.deliveryAddress || null,
   });
 
   if (error) throw new Error(`Could not save the order: ${error.message}`);
@@ -159,17 +156,13 @@ export async function cancelOrder(orderId: string): Promise<void> {
 function withContext(
   order: Order,
   customers: readonly Customer[],
-  products: readonly Product[],
 ): OrderWithContext {
   const customer = customers.find((entry) => entry.id === order.customerId);
-  const firstLine = order.lines[0];
-  const product = products.find((entry) => entry.id === firstLine?.productId);
 
   return {
     order,
     customerName: customer?.name ?? "Unknown customer",
-    productName: product?.name ?? "Unknown product",
-    quantity: order.lines.reduce((total, line) => total + line.quantity, 0),
+    quantity: orderQuantity(order),
     totalPesewas: orderTotalPesewas(order),
   };
 }

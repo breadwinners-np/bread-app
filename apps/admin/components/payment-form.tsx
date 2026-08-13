@@ -102,8 +102,8 @@ export function PaymentForm({
           <option value="">On the account</option>
           {openOrders.map((order) => (
             <option key={order.id} value={order.id}>
-              {formatDate(order.deliveryDate)} — {order.quantity} ×{" "}
-              {order.productName} — {formatGhs(order.outstandingPesewas)} unpaid
+              {formatDate(order.deliveryDate)} — {order.description} —{" "}
+              {formatGhs(order.outstandingPesewas)} unpaid
             </option>
           ))}
         </select>

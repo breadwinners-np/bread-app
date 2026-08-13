@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import {
   ORDER_STATUS_LABELS,
+  describeOrderLines,
   formatDate,
   formatGhs,
   formatLongDate,
@@ -226,13 +227,22 @@ function OrderList({
               key={entry.order.id}
               className="flex flex-wrap items-center justify-between gap-4 px-6 py-4"
             >
+              {/*
+                The customer once, with their breads under them. One basket is
+                one order (decision 0026), so somebody who ordered butter and
+                brown bread is one row here, not two.
+              */}
               <div className="min-w-48">
                 <p className="font-medium text-stone-900">
                   {entry.customerName}
                 </p>
-                <p className="text-stone-600">
-                  {entry.quantity} × {entry.productName}
-                </p>
+                <ul className="text-stone-600">
+                  {entry.order.lines.map((orderLine) => (
+                    <li key={orderLine.id}>
+                      {orderLine.quantity} × {orderLine.productName}
+                    </li>
+                  ))}
+                </ul>
               </div>
 
               {showDate && (
@@ -272,7 +282,7 @@ function OrderList({
                   <input type="hidden" name="orderId" value={entry.order.id} />
                   <ConfirmButton
                     label="Cancel"
-                    question={`Cancel ${entry.customerName}'s order of ${entry.quantity} × ${entry.productName}?`}
+                    question={`Cancel ${entry.customerName}'s order of ${describeOrderLines(entry.order)}?`}
                     confirmLabel="Yes, cancel this order"
                     confirmVariant="danger"
                   />

@@ -67,6 +67,8 @@ export function toCustomer(row: CustomerRow): Customer {
     phone: row.phone,
     type: row.type,
     area: row.area,
+    address: row.address ?? undefined,
+    email: row.email ?? undefined,
     notes: row.notes ?? undefined,
     archivedAt: toIsoTimestampOrNull(row.archived_at),
   };
@@ -86,8 +88,10 @@ export function toOrderLine(row: OrderItemRow): OrderLine {
   return {
     id: row.id,
     productId: row.product_id,
+    productName: row.product_name,
     quantity: row.quantity,
     unitPricePesewas: row.unit_price_pesewas,
+    deliveredQuantity: row.delivered_quantity,
   };
 }
 
@@ -109,6 +113,7 @@ export function toOrder(
     status: row.cancelled_at ? "cancelled" : orderStatusForDelivery(deliveryStatus),
     source: row.source,
     lines: items.map(toOrderLine),
+    deliveryAddress: row.delivery_address,
     createdAt: toIsoTimestamp(row.created_at),
     rescheduledFrom: row.rescheduled_from,
   };

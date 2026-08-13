@@ -121,7 +121,9 @@ Paste those lines exactly, with nothing after them. zsh does not treat `#` as a
 comment in interactive shells by default, so a trailing comment becomes an
 argument and `next dev` fails with "Invalid project directory".
 
-**This is still a prototype.** There is no login on either app, the storefront's
+**This is still a prototype.** The admin app has no login at all; the
+storefront's customer accounts are a phone number and a PIN rather than the
+planned SMS confirmation (decision 0027). The storefront's
 payment step is mocked rather than real (see
 [apps/storefront/README.md](apps/storefront/README.md)), and the seeded data is
 fabricated. Do not enter real customer information.

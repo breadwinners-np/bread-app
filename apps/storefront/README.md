@@ -9,22 +9,30 @@ owner before deciding whether (and how) to build the real thing.
 What it does:
 
 - Lists the four products (butter, brown, sugar, mixfruit bread) from Supabase.
-- Lets a visitor build a cart, choose a delivery day, and check out with their
-  name, phone and delivery area — no login.
+- Lets a customer open an account — name, phone, business or individual, area,
+  address, and a four-digit PIN — and sign back into it later.
+- Lets them build a cart, choose a delivery day and where the bread should go,
+  and check out as their account.
+- Shows them everything they have ordered before, on `/account`.
 - "Pays" with a mocked Momo/card step — no money moves, and no Paystack
   account is required to try it.
 
-**The two apps share one database.** A checkout here creates (or matches, by
-phone number) a real customer, real orders, and a real confirmed payment in the
-same tables `apps/admin` reads. So an order placed here appears on the owner's
+**The two apps share one database.** A checkout here writes a real order and a
+real confirmed payment, against the real customer signed in, in the same tables
+`apps/admin` reads. So an order placed here appears on the owner's
 Orders page tagged "Online", lands on her delivery round for the day the
 customer chose, counts toward that customer's balance, and shows up in her
 reports. She can cancel it. There is no separate demo data path.
 
-One deliberate wrinkle: a basket with several kinds of bread becomes **one
-order per bread type**, because the owner's delivery sheet is written one bread
-at a time and a short drop has to be able to say which bread was short. That is
-open question ORD-12; see `DECISIONS.md`.
+A basket with several kinds of bread is **one order with several lines**, so
+the owner sees the customer once with their breads underneath. A short drop
+records how many of *each* bread arrived. See decision 0026.
+
+**Signing in is a phone number and a PIN, which is deliberately demo-grade.**
+The real buyer app confirms a number by SMS (open question AUTH-3, unanswered
+because it costs money per message in Ghana). Decision 0027 lists exactly what
+this does and does not protect — read it before putting this in front of
+anyone with a real balance.
 
 ## One-time setup
 
@@ -47,6 +55,12 @@ Open the Supabase project's **SQL editor** and run these in order:
 2. [`supabase/migrations/0002_unify_admin_and_storefront.sql`](../../supabase/migrations/0002_unify_admin_and_storefront.sql)
    — customers, deliveries, payments, spending, the two transaction functions,
    and the owner's starting book.
+3. [`supabase/migrations/0003_lock_down_rpc_execution.sql`](../../supabase/migrations/0003_lock_down_rpc_execution.sql)
+   — closes those functions to the publishable key. Not optional: without it
+   anyone holding that key can mark an order paid. See decision 0024.
+4. [`supabase/migrations/0004_customer_accounts_and_baskets.sql`](../../supabase/migrations/0004_customer_accounts_and_baskets.sql)
+   — customer accounts and PINs, addresses, one order per basket, and how much
+   of each bread arrived.
 
 ### 3. Configure environment variables
 
@@ -81,10 +95,18 @@ Admin is **http://localhost:3000**, the storefront **http://localhost:3001**.
 
 - **RLS on every table.** `products` is public-read. Everything else has RLS
   enabled but *no* policies for `anon` — every read and write happens through
-  server-side code using the secret key, never directly from the browser. There
-  is no customer login yet, so there is no "their own rows" to scope a customer
-  policy by, and a broad read policy would expose one customer's orders (or the
-  owner's costs and profit) to another. See the migration headers.
+  server-side code using the secret key, never directly from the browser. A
+  customer's session is this app's own signed cookie rather than a Supabase
+  JWT, so there is still nothing for a database policy to scope "their own
+  rows" by; the scoping happens in the queries, which always filter by the
+  customer id in that cookie. See the migration headers.
+- **Sessions are signed, and PINs are hashed.** The cookie holds the customer
+  id and an HMAC of it, so editing it does not hand somebody another
+  customer's history; it is `httpOnly`, so a script on the page cannot read
+  it. PINs are stored as salted scrypt hashes in their own table, which no
+  admin screen ever selects. Sign-in stops after five wrong tries in fifteen
+  minutes — four digits is only ten thousand guesses. Decision 0027 lists what
+  this still does not protect.
 - **The cart is never trusted for price.** The browser only ever sends
   `productId` + `quantity`. `app/actions.ts` looks up the real, current price
   from the database before creating an order — a tampered cart cannot buy
@@ -92,20 +114,21 @@ Admin is **http://localhost:3000**, the storefront **http://localhost:3001**.
 - **The service role key never reaches the client.** `lib/supabase-admin.ts`
   imports the `server-only` package, which turns an accidental client-side
   import into a build failure rather than a leaked secret.
-- **Order confirmation links are capability URLs.** `/order/[id]` has no
-  login check — the UUID itself is the "password". That's fine for a demo
-  link shared with one person, but it means anyone who gets the link can see
-  that order. A production version should require the customer to be logged
-  in (the phone-OTP flow already planned in the root `CLAUDE.md`) and scope
-  the query to their own orders.
-- **Customers are matched by phone, and never renamed by a checkout.** Two
-  people ordering at once from the same new number cannot create two customer
-  records (a unique index on the normalised number), and someone entering a
-  number that already belongs to a wholesale customer cannot rename them from
-  this form.
-- **Not rate limited, and no auth.** Anyone with the URL can create orders and
-  customer records. Fine behind a demo link; this must not be exposed publicly
-  as it stands.
+- **An order is only readable by the customer it belongs to.** `/order/[id]`
+  used to treat the UUID itself as the password. It now requires a session and
+  filters on `customer_id`, so a shared link shows a stranger nothing.
+- **Who an order belongs to comes from the session, never the form.** Nothing
+  the browser sends decides which customer an order is written against, or
+  which order a payment confirms.
+- **Customers are matched by phone, and never renamed by a sign-up.** A unique
+  index on the normalised number keeps one person to one record, and someone
+  signing up with a number the owner already has cannot change the name, type
+  or area she typed — only fill in the blanks.
+- **Sign-up is open, and claiming needs only a phone number.** Anyone can
+  create an account, and a customer the owner already has can be claimed by
+  whoever signs up with their number first. Real number confirmation is
+  AUTH-3. Fine behind a demo link; this must not be exposed publicly as it
+  stands.
 
 ## Upgrading the mocked payment to real Paystack
 

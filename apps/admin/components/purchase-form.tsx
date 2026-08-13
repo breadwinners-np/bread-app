@@ -3,6 +3,9 @@
 import { useActionState, useState } from "react";
 
 import {
+  COST_CATEGORY_LABELS,
+  COST_CATEGORY_OPTIONS,
+  NEW_SUPPLY_ITEM,
   UNIT_LABELS,
   UNIT_OPTIONS,
   formatGhs,
@@ -55,9 +58,46 @@ export function PurchaseForm({
               {item.name}
             </option>
           ))}
+          {/*
+            The list was fixed, so anything she bought that was not on it could
+            not be written down at all — and a purchase she cannot record is a
+            cost missing from her reports.
+          */}
+          <option value={NEW_SUPPLY_ITEM}>Something else — let me type it</option>
         </select>
         <FieldError message={state.fieldErrors?.itemId} />
       </Field>
+
+      {itemId === NEW_SUPPLY_ITEM && (
+        <div className="space-y-6 rounded-lg border border-stone-300 bg-stone-50 p-4">
+          <Field label="What is it called?" hint="It joins the list, so next time you just pick it.">
+            <input
+              name="newItemName"
+              className={inputClass}
+              placeholder="Baking soda"
+            />
+            <FieldError message={state.fieldErrors?.newItemName} />
+          </Field>
+
+          <Field
+            label="What kind of cost is it?"
+            hint="This decides which line of your reports it adds to."
+          >
+            <select
+              name="newItemCategory"
+              className={inputClass}
+              defaultValue="ingredients"
+            >
+              {COST_CATEGORY_OPTIONS.map((category) => (
+                <option key={category} value={category}>
+                  {COST_CATEGORY_LABELS[category]}
+                </option>
+              ))}
+            </select>
+            <FieldError message={state.fieldErrors?.newItemCategory} />
+          </Field>
+        </div>
+      )}
 
       <Field label="Day you bought it">
         <input

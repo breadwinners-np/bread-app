@@ -7,6 +7,7 @@
  */
 
 import {
+  NEW_SUPPLY_ITEM,
   cedisToPesewas,
   purchaseTotalPesewas,
   purchasesTotalPesewas,
@@ -53,10 +54,57 @@ export async function totalPurchasesForDate(date: string): Promise<number> {
   return purchasesTotalPesewas(purchases.filter((entry) => entry.date === date));
 }
 
-export async function createPurchase(input: PurchaseInput): Promise<void> {
+/**
+ * Add something the list did not have.
+ *
+ * The supply list was fixed — flour, yeast, butter, sugar, gas — and a bakery
+ * buys things nobody thought of. A purchase she cannot record is a cost
+ * missing from her reports, which is worse than a slightly longer list.
+ *
+ * An item she has bought before is reused rather than added twice, matched on
+ * the name ignoring case and spacing, so "Baking soda" and "baking soda " stay
+ * one line in her spending. Answers INV-2; see decision 0028.
+ */
+async function findOrCreateSupplyItem(
+  name: string,
+  category: NonNullable<PurchaseInput["newItemCategory"]>,
+  unit: PurchaseInput["unit"],
+): Promise<SupplyItem> {
   const items = await loadSupplyItems();
+  const wanted = name.trim().toLowerCase();
 
-  const item = items.find((entry) => entry.id === input.itemId);
+  const existing = items.find(
+    (entry) => entry.name.trim().toLowerCase() === wanted,
+  );
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from("supply_items")
+    .insert({ name: name.trim(), default_unit: unit, category, active: true })
+    .select("*")
+    .single();
+
+  if (error) throw new Error(`Could not add that item: ${error.message}`);
+
+  return {
+    id: data.id as string,
+    name: data.name as string,
+    defaultUnit: data.default_unit as SupplyItem["defaultUnit"],
+    category: data.category as SupplyItem["category"],
+    active: data.active as boolean,
+  };
+}
+
+export async function createPurchase(input: PurchaseInput): Promise<void> {
+  const item =
+    input.itemId === NEW_SUPPLY_ITEM
+      ? await findOrCreateSupplyItem(
+          input.newItemName ?? "",
+          input.newItemCategory ?? "ingredients",
+          input.unit,
+        )
+      : (await loadSupplyItems()).find((entry) => entry.id === input.itemId);
+
   if (!item) {
     throw new Error("That item does not exist");
   }

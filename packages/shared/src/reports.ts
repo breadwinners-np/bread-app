@@ -434,17 +434,19 @@ function rankProducts(
 
   for (const order of ordersInRange) {
     const delivery = deliveryFor(order);
-    let remaining = deliveredQuantity(order, delivery);
-    if (remaining <= 0) continue;
+    if (!delivery || order.status === "cancelled") continue;
+    if (delivery.status !== "delivered" && delivery.status !== "partial") continue;
 
+    // Read per bread, not by filling the lines from one total. An order can
+    // carry several breads at different prices (decision 0026), so filling in
+    // array order would credit a short drop to the wrong bread and rank the
+    // best sellers wrongly.
     for (const line of order.lines) {
-      if (remaining <= 0) break;
-      const taken = Math.min(line.quantity, remaining);
-      remaining -= taken;
+      if (line.deliveredQuantity <= 0) continue;
 
       const entry = totals.get(line.productId) ?? { value: 0, quantity: 0 };
-      entry.value += taken * line.unitPricePesewas;
-      entry.quantity += taken;
+      entry.value += line.deliveredQuantity * line.unitPricePesewas;
+      entry.quantity += line.deliveredQuantity;
       totals.set(line.productId, entry);
     }
   }

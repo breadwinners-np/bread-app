@@ -46,6 +46,19 @@ export function CustomerForm() {
         <FieldError message={state.fieldErrors?.area} />
       </Field>
 
+      <Field
+        label="Address"
+        hint="House, street or a landmark — what the driver needs to find them. Optional."
+      >
+        <textarea name="address" rows={2} className={inputClass} />
+        <FieldError message={state.fieldErrors?.address} />
+      </Field>
+
+      <Field label="Email" hint="Optional.">
+        <input name="email" type="email" className={inputClass} />
+        <FieldError message={state.fieldErrors?.email} />
+      </Field>
+
       <Field label="Notes" hint="Anything the driver or you should remember.">
         <textarea name="notes" rows={3} className={inputClass} />
       </Field>

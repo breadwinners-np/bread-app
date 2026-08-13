@@ -17,6 +17,7 @@ import {
 import { recordDeliveryAction, rescheduleDeliveryAction } from "@/app/actions";
 import { ConfirmButton, GuardedSubmit } from "@/components/confirm-button";
 import { MonthCalendar, type CalendarCell } from "@/components/month-calendar";
+import { PartDeliveryFields } from "@/components/part-delivery-fields";
 import {
   Badge,
   ButtonLink,
@@ -237,11 +238,29 @@ async function DayView({
                     <p className="text-lg font-semibold text-stone-900">
                       {item.customer.name}
                     </p>
-                    <p className="text-stone-700">
-                      {item.orderedQuantity} × {item.productName}
-                    </p>
+
+                    {/*
+                      Every bread on the order, under the one name. A customer
+                      who ordered two kinds is one drop, not two.
+                    */}
+                    <ul className="text-stone-700">
+                      {item.order.lines.map((orderLine) => (
+                        <li key={orderLine.id}>
+                          {orderLine.quantity} × {orderLine.productName}
+                          {item.delivery.status === "partial" &&
+                            orderLine.deliveredQuantity !== orderLine.quantity && (
+                              <span className="text-amber-700">
+                                {" "}
+                                — only {orderLine.deliveredQuantity} taken
+                              </span>
+                            )}
+                        </li>
+                      ))}
+                    </ul>
+
                     <p className="text-sm text-stone-500">
-                      {item.customer.area} · {item.customer.phone}
+                      {item.order.deliveryAddress || item.customer.area} ·{" "}
+                      {item.customer.phone}
                     </p>
                     {item.order.rescheduledFrom && (
                       <p className="mt-1 text-sm text-amber-700">
@@ -280,11 +299,6 @@ async function DayView({
                   className="flex flex-wrap items-start gap-2"
                 >
                   <input type="hidden" name="orderId" value={item.order.id} />
-                  <input
-                    type="hidden"
-                    name="orderedQuantity"
-                    value={item.orderedQuantity}
-                  />
 
                   <GuardedSubmit
                     name="status"
@@ -294,37 +308,24 @@ async function DayView({
                   />
 
                   {/*
-                    Hidden when only one was ordered — "some of one loaf" is not
-                    a thing she can record.
+                    Hidden when only one loaf was ordered — "some of one loaf"
+                    is not a thing she can record.
+
+                    A box per bread, because an order can carry several and
+                    they are rarely the same price: one number for the whole
+                    order could not say which bread was short, and guessing
+                    would change what the customer owes.
                   */}
                   {item.orderedQuantity > 1 && (
                     <ConfirmButton
                       label="Only some of it"
                       variant="secondary"
-                      question={`How many did ${item.customer.name} actually take?`}
+                      question={`How much did ${item.customer.name} actually take?`}
                       confirmLabel="Save what they took"
                       name="status"
                       value="partial"
                     >
-                      <label
-                        htmlFor={`qty-${item.delivery.id}`}
-                        className="block font-medium text-stone-900"
-                      >
-                        Number of {item.productName} delivered
-                      </label>
-                      <input
-                        id={`qty-${item.delivery.id}`}
-                        type="number"
-                        name="deliveredQuantity"
-                        min={1}
-                        max={item.orderedQuantity - 1}
-                        required
-                        placeholder={`Fewer than ${item.orderedQuantity}`}
-                        className={`${inputClass} mt-2 max-w-64`}
-                      />
-                      <p className="mt-2 text-sm text-stone-600">
-                        They will only be charged for what you enter here.
-                      </p>
+                      <PartDeliveryFields lines={item.order.lines} />
                     </ConfirmButton>
                   )}
 
@@ -396,11 +397,16 @@ function OutstandingView({
                 <p className="text-lg font-semibold text-stone-900">
                   {item.customer.name}
                 </p>
-                <p className="text-stone-700">
-                  {item.orderedQuantity} × {item.productName}
-                </p>
+                <ul className="text-stone-700">
+                  {item.order.lines.map((orderLine) => (
+                    <li key={orderLine.id}>
+                      {orderLine.quantity} × {orderLine.productName}
+                    </li>
+                  ))}
+                </ul>
                 <p className="text-sm text-stone-500">
-                  {item.customer.area} · {item.customer.phone}
+                  {item.order.deliveryAddress || item.customer.area} ·{" "}
+                  {item.customer.phone}
                 </p>
                 <p className="mt-1.5 font-medium text-red-700">
                   Was due {formatDate(item.order.deliveryDate)} —{" "}
@@ -452,11 +458,6 @@ function OutstandingView({
 
               <form action={recordDeliveryAction}>
                 <input type="hidden" name="orderId" value={item.order.id} />
-                <input
-                  type="hidden"
-                  name="orderedQuantity"
-                  value={item.orderedQuantity}
-                />
                 <ConfirmButton
                   label="They did get it"
                   variant="secondary"

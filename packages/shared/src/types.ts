@@ -45,6 +45,13 @@ export interface Customer {
   type: CustomerType;
   /** Delivery area or address, as the owner would describe it. */
   area: string;
+  /**
+   * Where the customer lives, in their own words — house, street, landmark.
+   * This is their address, NOT where an order goes: an order carries its own
+   * delivery address, because bread is often sent somewhere else.
+   */
+  address?: string;
+  email?: string;
   notes?: string;
   /** Customers are archived, never deleted, so history survives. */
   archivedAt?: string | null;
@@ -62,12 +69,24 @@ export interface Product {
 export interface OrderLine {
   id: string;
   productId: string;
+  /**
+   * The bread's name as it was when the order was placed, snapshotted for the
+   * same reason the price is: renaming or retiring a product must not rewrite
+   * what a past order said.
+   */
+  productName: string;
   quantity: number;
   /**
    * The price that applied when the order was placed. Snapshotted so that
    * changing a product's price never rewrites the value of a past order.
    */
   unitPricePesewas: number;
+  /**
+   * How many of THIS bread actually arrived. Zero until the delivery is
+   * recorded. An order can carry several breads, so a short drop has to say
+   * which bread was short — one total across the order could not.
+   */
+  deliveredQuantity: number;
 }
 
 export interface Order {
@@ -77,7 +96,16 @@ export interface Order {
   deliveryDate: string;
   status: OrderStatus;
   source: OrderSource;
+  /**
+   * Every bread on this order. One basket is one order (decision 0026), so a
+   * customer who wants butter and brown bread appears once, with two lines.
+   */
   lines: OrderLine[];
+  /**
+   * Where this order goes. Empty means the customer's own address — bread is
+   * often sent to an office or a relative, so this is never assumed.
+   */
+  deliveryAddress?: string | null;
   createdAt: string;
   /**
    * Set when a delivery was moved to a later day, holding the date it was
@@ -197,11 +225,17 @@ export interface MonthlyCommitment {
   confirmedByCustomer: boolean;
 }
 
-/** A delivery joined to everything the owner needs to see it in context. */
+/**
+ * A delivery joined to everything the owner needs to see it in context.
+ *
+ * The breads are read from `order.lines`, which carry their own snapshotted
+ * names — so nothing here has to go looking in the product list to render a
+ * drop.
+ */
 export interface DeliveryListItem {
   order: Order;
   customer: Customer;
   delivery: Delivery;
-  productName: string;
+  /** Total loaves across every bread on the order. */
   orderedQuantity: number;
 }

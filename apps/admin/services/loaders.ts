@@ -106,10 +106,10 @@ export const loadDeliveries = cache(async (): Promise<Delivery[]> => {
 /**
  * Orders carry their lines through a PostgREST embed, so this is one query.
  *
- * The embed is explicitly ordered because line order is load-bearing: a part
- * delivery is valued by filling the order's lines in array order, and the
- * orders list names an order after its first line. Unordered rows would make
- * both wobble between refreshes.
+ * The embed is ordered by `position`, which is the order the customer put the
+ * breads in the basket. Every line of an order is written in one statement, so
+ * they share a `created_at` to the microsecond and ordering by that alone
+ * leaves ties — the breads on an order would swap places between refreshes.
  *
  * An order's status comes from its delivery, so deliveries are loaded first.
  */
@@ -119,6 +119,7 @@ export const loadOrders = cache(async (): Promise<Order[]> => {
       .from("orders")
       .select("*, order_items(*)")
       .order("delivery_date", { ascending: false })
+      .order("position", { referencedTable: "order_items", ascending: true })
       .order("created_at", { referencedTable: "order_items", ascending: true })
       .limit(ROW_LIMIT),
     loadDeliveries(),

@@ -61,6 +61,8 @@ export async function createCustomerAction(
     phone: formData.get("phone"),
     type: formData.get("type"),
     area: formData.get("area"),
+    address: formData.get("address") || undefined,
+    email: formData.get("email") || "",
     notes: formData.get("notes") || undefined,
   });
 
@@ -110,11 +112,22 @@ export async function createOrderAction(
     }
   }
 
+  // One order can carry several breads, so the form sends a product and a
+  // quantity per row: product[0], quantity[0], product[1], and so on. Rows she
+  // added and then left empty are dropped rather than refused.
+  const lines = formData
+    .getAll("productId")
+    .map((productId, index) => ({
+      productId,
+      quantity: formData.getAll("quantity")[index] ?? "0",
+    }))
+    .filter((line) => line.productId && Number(line.quantity) > 0);
+
   const parsed = orderInputSchema.safeParse({
     customerId,
     deliveryDate: formData.get("deliveryDate"),
-    productId: formData.get("productId"),
-    quantity: formData.get("quantity"),
+    lines,
+    deliveryAddress: formData.get("deliveryAddress") || undefined,
   });
 
   if (!parsed.success) {
@@ -156,21 +169,21 @@ export async function cancelOrderAction(formData: FormData): Promise<void> {
 }
 
 export async function recordDeliveryAction(formData: FormData): Promise<void> {
-  const status = formData.get("status");
-  const orderedQuantity = Number(formData.get("orderedQuantity") ?? 0);
-
-  // "Delivered in full" needs no typed quantity — take it from the order.
-  const rawQuantity =
-    status === "delivered"
-      ? orderedQuantity
-      : status === "not_delivered"
-        ? 0
-        : formData.get("deliveredQuantity");
+  // How many of each bread arrived, submitted as delivered[<order line id>].
+  // "Delivered in full" and "could not deliver" send none of these: those two
+  // are read off the order itself, never off the form.
+  const deliveredByLine: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    const match = /^delivered\[(.+)\]$/.exec(key);
+    if (match?.[1] && typeof value === "string" && value !== "") {
+      deliveredByLine[match[1]] = value;
+    }
+  }
 
   const parsed = recordDeliverySchema.safeParse({
     orderId: formData.get("orderId"),
-    status,
-    deliveredQuantity: rawQuantity,
+    status: formData.get("status"),
+    deliveredByLine,
     note: formData.get("note") || undefined,
   });
 
@@ -249,6 +262,9 @@ export async function createPurchaseAction(
 ): Promise<FormState> {
   const parsed = purchaseInputSchema.safeParse({
     itemId: formData.get("itemId"),
+    // Only read when she chose "Something else" — see NEW_SUPPLY_ITEM.
+    newItemName: formData.get("newItemName") || undefined,
+    newItemCategory: formData.get("newItemCategory") || undefined,
     date: formData.get("date"),
     quantity: formData.get("quantity"),
     unit: formData.get("unit"),

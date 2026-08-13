@@ -2,22 +2,37 @@
 
 import { randomUUID } from "node:crypto";
 
-import { addDays, normalisePhone, todayIso } from "@bread/shared";
+import { addDays, checkoutInputSchema, todayIso, type CheckoutInput } from "@bread/shared";
 
-import { checkoutInputSchema, type CheckoutInput } from "@/lib/schemas";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSessionCustomerId } from "@/lib/session";
 
 type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
 export interface PlacedOrder {
-  /** One order per bread type, so the owner's round reads one bread at a time. */
-  orderIds: string[];
+  orderId: string;
   totalPesewas: number;
 }
 
+/**
+ * Place one basket as one order.
+ *
+ * It used to write one order per bread type, so a customer who bought butter
+ * and brown bread appeared twice on the owner's screen (decision 0023). One
+ * basket is now one order carrying several lines — see decision 0026.
+ *
+ * Who the order belongs to comes from the signed-in session, never from the
+ * form. That is what stops a new customer record being created on every
+ * checkout, and stops anyone placing an order in somebody else's name.
+ */
 export async function placeOrder(
   input: CheckoutInput,
 ): Promise<ActionResult<PlacedOrder>> {
+  const customerId = await getSessionCustomerId();
+  if (!customerId) {
+    return { ok: false, error: "Sign in before placing your order." };
+  }
+
   const parsed = checkoutInputSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -26,21 +41,17 @@ export async function placeOrder(
     };
   }
 
-  const {
-    customerName,
-    customerPhone,
-    deliveryArea,
-    deliveryDate,
-    deliveryNote,
-    paymentMethod,
-    items,
-  } = parsed.data;
+  const { deliveryAddress, deliveryDate, deliveryNote, paymentMethod, items } =
+    parsed.data;
 
   // Bread is baked overnight for the morning round, so the earliest a new
   // order can be filled is tomorrow. Checked here as well as in the picker,
   // because the picker is only a suggestion to anyone posting directly.
   if (deliveryDate < addDays(todayIso(), 1)) {
-    return { ok: false, error: "Bread is baked fresh, so the earliest we can deliver is tomorrow." };
+    return {
+      ok: false,
+      error: "Bread is baked fresh, so the earliest we can deliver is tomorrow.",
+    };
   }
 
   const { data: products, error: productsError } = await supabaseAdmin
@@ -74,88 +85,33 @@ export async function placeOrder(
     });
   }
 
-  const customerId = await findOrCreateCustomer(customerName, customerPhone, deliveryArea);
-  if (!customerId) {
-    return { ok: false, error: "Could not save your details. Try again." };
+  // One call, so the order, all its breads and its delivery record either all
+  // exist or none of them do.
+  const { data, error } = await supabaseAdmin.rpc("place_order", {
+    p_customer_id: customerId,
+    p_delivery_date: deliveryDate,
+    p_source: "app",
+    p_lines: lines,
+    p_payment_method: paymentMethod,
+    p_payment_status: "pending",
+    p_delivery_note: deliveryNote || null,
+    p_delivery_address: deliveryAddress,
+  });
+
+  if (error || !data) {
+    return { ok: false, error: "Could not place the order. Try again." };
   }
 
-  // One order per bread type: the owner's delivery sheet is written one bread
-  // at a time, and a short drop has to be able to say which bread was short
-  // (ORD-12 is open, so this deliberately does not create multi-bread orders).
-  const orderIds: string[] = [];
-  let totalPesewas = 0;
-
-  for (const line of lines) {
-    const { data, error } = await supabaseAdmin.rpc("place_order", {
-      p_customer_id: customerId,
-      p_delivery_date: deliveryDate,
-      p_source: "app",
-      p_lines: [line],
-      p_payment_method: paymentMethod,
-      p_payment_status: "pending",
-      p_delivery_note: deliveryNote || null,
-    });
-
-    if (error || !data) {
-      return { ok: false, error: "Could not place the order. Try again." };
-    }
-
-    orderIds.push(data as string);
-    totalPesewas += line.unit_price_pesewas * line.quantity;
-  }
-
-  return { ok: true, data: { orderIds, totalPesewas } };
-}
-
-/**
- * Match the caller to an existing customer by phone number, or create one.
- *
- * Deliberately find-then-insert rather than an upsert. A merge-duplicates
- * upsert overwrites every column it is given, which would let someone typing a
- * number that already belongs to a wholesale customer rename them — and change
- * their delivery area — from a public checkout form. An existing customer is
- * matched and left exactly as the owner has them.
- *
- * The race (two orders from the same new number at once) is closed by the
- * unique index on the normalised number: the loser gets 23505 and re-reads the
- * row the winner just wrote, so both end up with the same customer.
- */
-async function findOrCreateCustomer(
-  name: string,
-  phone: string,
-  area: string,
-): Promise<string | null> {
-  const normalised = normalisePhone(phone);
-
-  const existing = await supabaseAdmin
-    .from("customers")
-    .select("id")
-    .eq("phone_normalised", normalised)
-    .maybeSingle();
-
-  if (existing.data) return existing.data.id as string;
-
-  const created = await supabaseAdmin
-    .from("customers")
-    .insert({ name, phone, area, type: "individual" })
-    .select("id")
-    .single();
-
-  if (created.data) return created.data.id as string;
-
-  // Unique violation: someone else created this customer between the two
-  // statements above. Their row is as good as ours.
-  if (created.error?.code === "23505") {
-    const raced = await supabaseAdmin
-      .from("customers")
-      .select("id")
-      .eq("phone_normalised", normalised)
-      .maybeSingle();
-
-    return (raced.data?.id as string) ?? null;
-  }
-
-  return null;
+  return {
+    ok: true,
+    data: {
+      orderId: data as string,
+      totalPesewas: lines.reduce(
+        (total, line) => total + line.unit_price_pesewas * line.quantity,
+        0,
+      ),
+    },
+  };
 }
 
 /**
@@ -171,28 +127,42 @@ async function findOrCreateCustomer(
  * that is a well-known way for a demo-grade integration to be spoofed.
  */
 export async function confirmMockPayment(
-  orderIds: string[],
+  orderId: string,
   method: "card" | "mobile_money",
 ): Promise<ActionResult<null>> {
-  if (orderIds.length === 0) {
+  const customerId = await getSessionCustomerId();
+  if (!customerId) {
+    return { ok: false, error: "Sign in to pay for this order." };
+  }
+
+  if (!orderId) {
     return { ok: false, error: "Missing order" };
   }
 
-  const reference = `MOCK-${randomUUID()}`;
+  // Confirming a payment marks an order paid, so it has to be this customer's
+  // order — an order id is otherwise all anyone would need.
+  const { data: order } = await supabaseAdmin
+    .from("orders")
+    .select("id")
+    .eq("id", orderId)
+    .eq("customer_id", customerId)
+    .maybeSingle();
 
-  for (const orderId of orderIds) {
-    // Marks the order paid and records the money in one transaction, behind a
-    // guard that only lets the first call through — so a double-clicked button
-    // cannot record the same money twice.
-    const { error } = await supabaseAdmin.rpc("confirm_order_payment", {
-      p_order_id: orderId,
-      p_reference: reference,
-      p_method: method,
-    });
+  if (!order) {
+    return { ok: false, error: "That order is not yours to pay for." };
+  }
 
-    if (error) {
-      return { ok: false, error: "Could not confirm payment. Try again." };
-    }
+  // Marks the order paid and records the money in one transaction, behind a
+  // guard that only lets the first call through — so a double-clicked button
+  // cannot record the same money twice.
+  const { error } = await supabaseAdmin.rpc("confirm_order_payment", {
+    p_order_id: orderId,
+    p_reference: `MOCK-${randomUUID()}`,
+    p_method: method,
+  });
+
+  if (error) {
+    return { ok: false, error: "Could not confirm payment. Try again." };
   }
 
   return { ok: true, data: null };

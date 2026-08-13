@@ -27,8 +27,25 @@ export interface Database {
           phone_normalised: string;
           type: "business" | "individual";
           area: string;
+          /** The fuller address a customer types when they open an account. */
+          address: string | null;
+          email: string | null;
           notes: string | null;
           archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+      };
+      /**
+       * How a customer proves who they are. Never selected by any admin
+       * screen — the secret lives in its own table so it cannot be loaded
+       * into a page by accident.
+       */
+      customer_credentials: {
+        Row: {
+          customer_id: string;
+          pin_hash: string;
+          pin_salt: string;
           created_at: string;
           updated_at: string;
         };
@@ -55,6 +72,8 @@ export interface Database {
           customer_name: string | null;
           customer_phone: string | null;
           delivery_note: string | null;
+          /** Where this order goes, which need not be where the customer lives. */
+          delivery_address: string | null;
           payment_method: "card" | "mobile_money" | "cash" | "cheque" | null;
           payment_status: "pending" | "paid" | "failed" | null;
           payment_reference: string | null;
@@ -70,6 +89,10 @@ export interface Database {
           product_name: string;
           unit_price_pesewas: number;
           quantity: number;
+          /** How many of THIS bread actually arrived. Zero until delivered. */
+          delivered_quantity: number;
+          /** Where this bread came in the basket. Ties on created_at otherwise. */
+          position: number;
           created_at: string;
         };
       };
@@ -136,6 +159,7 @@ export interface Database {
 type Tables = Database["public"]["Tables"];
 
 export type CustomerRow = Tables["customers"]["Row"];
+export type CustomerCredentialRow = Tables["customer_credentials"]["Row"];
 export type ProductRow = Tables["products"]["Row"];
 export type OrderRow = Tables["orders"]["Row"];
 export type OrderItemRow = Tables["order_items"]["Row"];

@@ -160,10 +160,11 @@ Rules that must hold even when the application code is wrong.
 - **Money is recorded once.** A repeated `confirm_order_payment` is refused, so
   a double-clicked pay button cannot charge twice.
 - **Impossible rows are refused** — zero and negative quantities, negative
-  prices, a payment of nothing, invented payment methods, order sources,
-  delivery statuses and customer types, a second delivery for one order, and a
-  line on an order that does not exist.
-- **One phone number is one customer**, and a public checkout cannot rename or
+  prices, more of a bread delivered than was ordered, a payment of nothing,
+  invented payment methods, order sources, delivery statuses and customer
+  types, a second delivery for one order, and a line on an order that does not
+  exist.
+- **One phone number is one customer**, and a public sign-up cannot rename or
   relocate a customer the owner already has.
 - **Deleting an order takes its lines and delivery with it.**
 
@@ -174,10 +175,12 @@ Rules that must hold even when the application code is wrong.
 Reads the owner's actual rendered screens, because a row existing in the
 database is not the same as her seeing it.
 
-A customer's two-bread basket becomes two orders (decision 0023) → an unpaid
-order stays off her screen → once paid it appears on Orders tagged **Online**
-and cancellable → the customer appears in Customers → the bread is on the round
-for the day the customer chose → the payment appears on Payments and is *not*
+A customer's two-bread basket is **one order** carrying both breads in the
+order they picked them (decision 0026) → an unpaid order stays off her screen →
+once paid it appears on Orders tagged **Online**, naming the customer once with
+both breads under them, and cancellable → the customer appears in Customers →
+the bread is on the round for the day the customer chose, at the address they
+gave rather than their own → the payment appears on Payments and is *not*
 sitting in her confirm queue → cancelling removes it from the round but keeps it
 in history.
 
@@ -188,16 +191,21 @@ in history.
 Recorded honestly rather than left implied.
 
 1. **Browser interaction.** Every check drives the server and the database. The
-   cart, the checkout form (delivery day picker, area), and the
+   cart, the sign-up and sign-in forms, the checkout form (delivery day picker,
+   deliver-somewhere-else), the per-bread part-delivery panel and the
    confirm-before-cancel panel are typechecked and render correctly, but no
    automated check has clicked them. **This needs a manual pass.**
 2. **The unit suite on this machine** — see the Node 22 gap above.
-3. **Paystack.** Payment is mocked (`confirmMockPayment`). The real integration
+3. **Customer accounts.** Sign-up, sign-in, the PIN lockout after five wrong
+   tries, and the rule that an order page shows nothing to a customer it does
+   not belong to are all unexercised by any script. Decision 0027 lists what
+   this scheme is not designed to withstand. **This needs a manual pass too.**
+4. **Paystack.** Payment is mocked (`confirmMockPayment`). The real integration
    is specified in `apps/storefront/README.md` and unwritten. The rule that
    matters when it is written: the client's success callback is never proof of
    payment; the server must verify with Paystack using the secret key before
    marking anything paid.
-4. **Concurrency.** The double-payment guard is proved sequentially, not under
+5. **Concurrency.** The double-payment guard is proved sequentially, not under
    two simultaneous requests. The guard is a single conditional `UPDATE`, so
    Postgres serialises it, but that reasoning is not backed by a test here.
-5. **Anything at scale.** Every check runs against a handful of rows.
+6. **Anything at scale.** Every check runs against a handful of rows.

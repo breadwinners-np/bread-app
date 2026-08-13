@@ -108,12 +108,26 @@ export default async function CustomerDetailPage({
         </Card>
       )}
 
-      {customer.notes && (
-        <Card className="mb-10">
-          <SectionTitle>Notes</SectionTitle>
-          <p className="mt-2 text-stone-700">{customer.notes}</p>
-        </Card>
-      )}
+      {/*
+        Everything she has about this person, whether she wrote it down herself
+        or they typed it in when they opened an account online. The two are the
+        same record, so this reads the same either way.
+      */}
+      <Card className="mb-10">
+        <SectionTitle>Their details</SectionTitle>
+        <dl className="mt-4 space-y-3">
+          <Detail label="Phone" value={customer.phone} />
+          <Detail label="Area" value={customer.area} />
+          <Detail
+            label="Address"
+            value={customer.address ?? "Not given"}
+            muted={!customer.address}
+          />
+          {customer.email && <Detail label="Email" value={customer.email} />}
+          <Detail label="Business or individual" value={CUSTOMER_TYPE_LABELS[customer.type]} />
+          {customer.notes && <Detail label="Notes" value={customer.notes} />}
+        </dl>
+      </Card>
 
       <Card className="mb-10">
         <SectionTitle>Orders</SectionTitle>
@@ -131,9 +145,19 @@ export default async function CustomerDetailPage({
                   <p className="font-medium text-stone-900">
                     {formatDate(entry.order.deliveryDate)}
                   </p>
-                  <p className="text-stone-600">
-                    {entry.quantity} × {entry.productName}
-                  </p>
+                  <ul className="text-stone-600">
+                    {entry.order.lines.map((orderLine) => (
+                      <li key={orderLine.id}>
+                        {orderLine.quantity} × {orderLine.productName}
+                      </li>
+                    ))}
+                  </ul>
+                  {entry.order.deliveryAddress &&
+                    entry.order.deliveryAddress !== customer.address && (
+                      <p className="text-sm text-stone-500">
+                        Taken to {entry.order.deliveryAddress}
+                      </p>
+                    )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
@@ -223,6 +247,27 @@ export default async function CustomerDetailPage({
         </p>
       </HowThisWorks>
     </>
+  );
+}
+
+function Detail({
+  label,
+  value,
+  muted = false,
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap justify-between gap-x-6 gap-y-1">
+      <dt className="text-stone-600">{label}</dt>
+      <dd
+        className={`max-w-md text-right ${muted ? "text-stone-500" : "text-stone-900"}`}
+      >
+        {value}
+      </dd>
+    </div>
   );
 }
 

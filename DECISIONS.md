@@ -45,11 +45,9 @@ cite them by identifier (`ORD-3`, `PAY-3`, …). If you add a question, give it 
 - **~~The bread list (PRD-5)~~ — ANSWERED, see 0020.** The four are butter,
   brown, sugar and mixfruit. **Prices are still placeholders** and need
   confirming with her.
-- **Several breads on one order (ORD-12).** Does a single order routinely carry
-  more than one type of bread, and does a short drop need to say *which* bread
-  was short? Still one type per order — a customer's basket of several breads
-  becomes several orders. See 0010 and 0023. **This is the question to ask her
-  first if the Orders screen looks cluttered during the demo.**
+- **~~Several breads on one order (ORD-12)~~ — ANSWERED, see 0026.** A basket
+  is one order carrying several breads, and a short drop records how many of
+  *each* bread arrived. Supersedes 0010 and 0023.
 - **Unsold or refused bread (DST-7).** Does a short or refused drop reduce what
   is owed? Do we track waste as a cost?
 - **Rescheduling (RSC-1).** When a failed delivery is moved to a later day, is it
@@ -72,14 +70,15 @@ cite them by identifier (`ORD-3`, `PAY-3`, …). If you add a question, give it 
   into a bake, which nobody does today. Does the owner want that, or is purchase
   history enough? Real stock tracking is a much larger feature and would need her
   to weigh bread against ingredients every day.
-- **Supply catalogue (INV-2).** Items are a fixed list (flour, yeast, butter,
-  sugar, salt, gas). Does the owner need to add her own, and should buying
-  something new create the item on the fly?
+- **~~Supply catalogue (INV-2)~~ — ANSWERED, see 0028.** She can type in
+  anything the list does not have, and buying it adds it to the list.
 - **Price changes (INV-3).** Purchases record the price paid each time, so a
   supplier's price rising is visible in the history. Does she want to be warned
   when a price moves, and by how much?
 - **Phone OTP budget (AUTH-3).** Supabase phone auth needs an SMS provider billed
   per message in Ghana. Is there a budget, or should admin use email + password?
+  **Still open.** Customers now sign in with a phone number and a PIN, which
+  needs no SMS — see 0027, which is explicitly an interim answer, not this one.
 - **Owner-entered orders (ORD-11).** Confirming the assumption that admin can
   create an order for a customer who phones in and never installs the app.
 - **Tax (TAX-1).** Do receipts and invoices need Ghana VAT and levies, or is this
@@ -90,6 +89,118 @@ Africa/Accra is UTC+0 with no daylight saving, business day is midnight to
 midnight local.
 
 ---
+
+## 0028 — She can type in a supply the list does not have
+
+**Date:** 2026-08-13 · **Status:** Proposed · **Answers INV-2**
+
+"Record something you bought" offered a fixed list — flour, yeast, butter,
+sugar, gas — and nothing else. A bakery buys things nobody thought of, and a
+purchase she cannot record is not a tidy list, it is a cost missing from her
+reports and a profit figure that is too high.
+
+The picker now ends in **"Something else — let me type it"**, which asks for a
+name and which kind of cost it is, then adds it to the list so next time she
+just picks it. An item she has bought before is matched on its name ignoring
+case and spacing, so "Baking soda" and "baking soda " stay one line in her
+spending rather than two.
+
+**Which kind of cost is asked, not guessed.** It decides which line of the
+report the money lands on, and a wrong guess there is a wrong report. The three
+kinds are the ones already in use: gas and fuel, ingredients, transport.
+
+**Tradeoff:** the list grows, and a typo makes a near-duplicate she cannot
+remove from this screen. Deactivating a supply is a database edit today. If the
+list gets messy in practice, editing it needs its own screen.
+
+## 0027 — Customers sign in with a phone number and a PIN
+
+**Date:** 2026-08-13 · **Status:** Proposed
+
+Ordering on the storefront needed a name, a phone number and an address typed
+fresh every single time, and matched the person to a customer record by that
+number. Anyone ordering twice was one person if they typed the number the same
+way both times, and two people if they did not. The owner ended up with several
+records for the same customer, each holding part of a balance.
+
+A customer now **opens an account before they can order**: name, phone,
+business or individual, area, address, and a four-digit PIN. Ordering is done
+as that account, so the order joins one history that both they and the owner
+can see. `orders.customer_id` comes from the signed cookie and never from the
+form, so nobody can order in somebody else's name.
+
+**Business or individual is asked outright.** Every checkout used to create an
+`individual`, which was wrong for exactly the customers who matter most — the
+wholesale ones — and the owner's screens treat the two differently.
+
+**Why a PIN and not the phone OTP in CLAUDE.md.** OTP needs an SMS provider
+billed per message in Ghana, which is AUTH-3 and unanswered. A PIN costs
+nothing, works the moment the migration is applied, and is a familiar idea to
+anyone who uses mobile money. **This is an interim, not an answer to AUTH-3.**
+
+**What it is and is not.** The PIN is stored as a salted scrypt hash, never in
+the clear; sign-in gives up after five wrong tries in fifteen minutes, because
+four digits is ten thousand guesses; a wrong number and a wrong PIN give the
+same message, so this cannot be used to find out who has an account; and the
+session is an HMAC-signed, http-only cookie, so editing it does not hand
+somebody another customer's history.
+
+Three things are honestly demo-grade, and all three are fixed by real auth
+rather than by patching this:
+
+- **Claiming works on the phone number alone.** A customer the owner already
+  had in her book gets an account by signing up with their number — otherwise
+  every existing customer is locked out of the app forever. Somebody who knows
+  that number could get there first. OTP confirms the number; a PIN cannot.
+- **Attempt counting is in memory**, so it resets when the server restarts and
+  is not shared between instances.
+- **There is no server-side session**, so signing out on one device does not
+  end the session on another, and a stolen cookie is valid until it expires.
+
+The owner's own record of a customer wins over what a claimer types: her name,
+type and area stand, and only blanks are filled in. Otherwise a public form
+could rename a wholesale customer.
+
+**Also here:** an order carries its own `delivery_address`, defaulted to the
+customer's address but always asked. Where someone lives is not where the bread
+goes — offices, churches and relatives are ordinary. The owner's round shows
+the order's address, falling back to the customer's area.
+
+The admin app still has no authentication at all (0009). Nothing here changes
+that, and it is still the thing that has to happen before real data.
+
+## 0026 — One basket is one order, and a short drop says which bread
+
+**Date:** 2026-08-13 · **Status:** Proposed · **Supersedes 0023 and 0010 ·
+Answers ORD-12**
+
+A customer who ordered butter bread and brown bread became **two orders**, and
+appeared twice on the owner's screen. That was decision 0023, taken because
+recording a short delivery against several breads would have needed an answer
+to ORD-12. The owner has now said plainly that she wants the person once, with
+what they ordered listed underneath.
+
+So: one basket is one order with several lines. Orders, the delivery round,
+Today, and a customer's history all show the customer once with their breads
+stacked under the name.
+
+**What that forced, and what it is worth.** With several breads on an order,
+"they took 8 of the 15" cannot say *which* 8 — and the breads are not the same
+price, so filling the lines in array order (what the old code did) would charge
+for bread nobody received. `order_items.delivered_quantity` now records what
+arrived **per bread**, and "Only some of it" asks a number for each. There is a
+regression test for the case that made this necessary: two ways of being short
+by three loaves, GHS 6 apart.
+
+This does **not** answer DST-7 — whether a short drop reduces what is owed is
+still open, and still resolved the same way (decision 0012: they are charged
+for what arrived). It only makes the amount arrived exact rather than guessed.
+
+**Costs:** recording a delivery is two tables again rather than the single
+write 0021 arranged, so it goes through a `record_delivery` transaction. Order
+lines carry an explicit `position`, because every line of an order is inserted
+in one statement and shares a `created_at` to the microsecond — ordering by
+that alone let the breads swap places between refreshes.
 
 ## 0025 — A negative balance reads as "in credit", never "you owe them"
 

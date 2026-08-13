@@ -65,6 +65,7 @@ import {
   summariseReport,
   type Delivery,
   type Order,
+  type OrderLine,
   type Payment,
 } from "../src/index";
 
@@ -78,10 +79,19 @@ function order(overrides: Partial<Order> & { id: string }): Order {
     deliveryDate: "2026-07-20",
     status: "scheduled",
     source: "admin",
-    lines: [
-      { id: `${overrides.id}-l1`, productId: "prd-1", quantity: 10, unitPricePesewas: 1200 },
-    ],
+    lines: [line({ id: `${overrides.id}-l1` })],
     createdAt: "2026-07-19T08:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function line(overrides: Partial<OrderLine> & { id: string }): OrderLine {
+  return {
+    productId: "prd-1",
+    productName: "Sugar bread",
+    quantity: 10,
+    unitPricePesewas: 1200,
+    deliveredQuantity: 0,
     ...overrides,
   };
 }
@@ -298,8 +308,8 @@ describe("orders", () => {
     const multi = order({
       id: "ord-2",
       lines: [
-        { id: "a", productId: "prd-1", quantity: 10, unitPricePesewas: 1200 },
-        { id: "b", productId: "prd-2", quantity: 5, unitPricePesewas: 1000 },
+        line({ id: "a", quantity: 10, unitPricePesewas: 1200 }),
+        line({ id: "b", productId: "prd-2", productName: "Brown bread", quantity: 5, unitPricePesewas: 1000 }),
       ],
     });
     expect(orderTotalPesewas(multi)).toBe(17000);
@@ -378,21 +388,33 @@ describe("what an order is owed", () => {
     expect(orderAmountDuePesewas(ord, delivery({ orderId: "o1", status: "delivered", deliveredQuantity: 10 }))).toBe(0);
   });
 
-  it("RULE: a part delivery fills the order's lines in order", () => {
+  it("RULE: a part delivery is valued bread by bread", () => {
     const multi = order({
       id: "o2",
       lines: [
-        { id: "a", productId: "prd-1", quantity: 10, unitPricePesewas: 1200 },
-        { id: "b", productId: "prd-2", quantity: 5, unitPricePesewas: 1000 },
+        line({ id: "a", quantity: 10, unitPricePesewas: 1200, deliveredQuantity: 10 }),
+        line({ id: "b", productId: "prd-2", productName: "Brown bread", quantity: 5, unitPricePesewas: 1000, deliveredQuantity: 2 }),
       ],
     });
-    // 12 taken: all 10 of the first line, then 2 of the second.
-    expect(deliveredValuePesewas(multi, delivery({ orderId: "o2", status: "partial", deliveredQuantity: 12 }))).toBe(14000);
+    expect(deliveredValuePesewas(multi)).toBe(14000);
   });
 
-  it("RULE: delivering more than was ordered never bills for the excess", () => {
-    const ord = order({ id: "o3" });
-    expect(deliveredValuePesewas(ord, delivery({ orderId: "o3", status: "partial", deliveredQuantity: 999 }))).toBe(12000);
+  /**
+   * REGRESSION: this is why the delivered amount is recorded per bread rather
+   * than as one total for the order. Both of these are "12 of the 15 loaves
+   * arrived", and they are worth GHS 6 apart, because the breads are not the
+   * same price. The old code filled the lines in array order and would have
+   * billed both at 14000 — charging this customer for bread they never took.
+   */
+  it("REGRESSION: which bread was short changes what is owed", () => {
+    const shortOnTheDearBread = order({
+      id: "o3",
+      lines: [
+        line({ id: "a", quantity: 10, unitPricePesewas: 1200, deliveredQuantity: 7 }),
+        line({ id: "b", productId: "prd-2", productName: "Brown bread", quantity: 5, unitPricePesewas: 1000, deliveredQuantity: 5 }),
+      ],
+    });
+    expect(deliveredValuePesewas(shortOnTheDearBread)).toBe(13400);
   });
 
   /**
@@ -401,7 +423,7 @@ describe("what an order is owed", () => {
    * and orderAmountDuePesewas is the only function that has to move.
    */
   it("PROVISIONAL: a part delivery is owed only for what arrived", () => {
-    const ord = order({ id: "o4" });
+    const ord = order({ id: "o4", lines: [line({ id: "o4-l1", deliveredQuantity: 4 })] });
     expect(orderAmountDuePesewas(ord, delivery({ orderId: "o4", status: "partial", deliveredQuantity: 4 }))).toBe(4800);
   });
 });
@@ -569,7 +591,7 @@ describe("a customer's account", () => {
    */
   it("PROVISIONAL: the shortfall of a part delivery is shown as still to come", () => {
     const account = customerAccount(
-      [order({ id: "o5" })],
+      [order({ id: "o5", lines: [line({ id: "o5-l1", deliveredQuantity: 4 })] })],
       [delivery({ orderId: "o5", status: "partial", deliveredQuantity: 4 })],
       [],
     );
@@ -652,6 +674,44 @@ describe("reports", () => {
     expect(report.quantityDelivered).toBe(10);
     expect(report.buckets.find((b) => b.key === "2026-07-10")?.revenuePesewas).toBe(12000);
     expect(report.buckets.find((b) => b.key === "2026-07-11")?.revenuePesewas).toBe(0);
+  });
+
+  /**
+   * REGRESSION: the best-sellers ranking used to spread one delivered total
+   * across the order's lines in array order, so a short drop was credited to
+   * whichever bread happened to be listed first. With one bread per order that
+   * was exact; since decision 0026 an order carries several, and this is the
+   * report she would read to decide what to bake more of.
+   */
+  it("RULE: the best-sellers ranking counts what arrived, bread by bread", () => {
+    const report = buildReport({
+      ...emptyInput,
+      orders: [
+        order({
+          id: "o1",
+          deliveryDate: "2026-07-10",
+          lines: [
+            line({ id: "a", productId: "butter", quantity: 10, unitPricePesewas: 1800, deliveredQuantity: 2 }),
+            line({ id: "b", productId: "brown", quantity: 10, unitPricePesewas: 1400, deliveredQuantity: 10 }),
+          ],
+        }),
+      ],
+      deliveries: [delivery({ orderId: "o1", status: "partial", deliveredQuantity: 12 })],
+      products: [
+        { id: "butter", name: "Butter bread", unit: "loaf", pricePesewas: 1800, active: true },
+        { id: "brown", name: "Brown bread", unit: "loaf", pricePesewas: 1400, active: true },
+      ],
+    });
+
+    // Brown bread outsold butter here. Filling the lines in order would have
+    // reported the opposite.
+    expect(report.byProduct.map((entry) => entry.label)).toEqual([
+      "Brown bread",
+      "Butter bread",
+    ]);
+    expect(report.byProduct[0]?.quantity).toBe(10);
+    expect(report.byProduct[1]?.quantity).toBe(2);
+    expect(report.revenuePesewas).toBe(17600);
   });
 
   it("RULE: an order outside the range is ignored entirely", () => {
@@ -786,21 +846,45 @@ describe("reports", () => {
 // ---------------------------------------------------------------------------
 
 describe("schemas", () => {
-  it("RULE: an order needs a customer, a real date, a product and a whole quantity", () => {
-    expect(
-      orderInputSchema.safeParse({
-        customerId: "cus-1",
-        deliveryDate: "2026-07-28",
-        productId: "prd-1",
-        quantity: "12", // arrives from a form as a string
-      }).success,
-    ).toBe(true);
+  it("RULE: an order needs a customer, a real date, and at least one whole bread", () => {
+    const base = { customerId: "cus-1", deliveryDate: "2026-07-28" };
+    const one = (quantity: unknown) => ({ ...base, lines: [{ productId: "prd-1", quantity }] });
 
-    expect(orderInputSchema.safeParse({ customerId: "", deliveryDate: "2026-07-28", productId: "prd-1", quantity: 1 }).success).toBe(false);
-    expect(orderInputSchema.safeParse({ customerId: "c", deliveryDate: "28/07/2026", productId: "p", quantity: 1 }).success).toBe(false);
-    expect(orderInputSchema.safeParse({ customerId: "c", deliveryDate: "2026-07-28", productId: "p", quantity: 0 }).success).toBe(false);
-    expect(orderInputSchema.safeParse({ customerId: "c", deliveryDate: "2026-07-28", productId: "p", quantity: -5 }).success).toBe(false);
-    expect(orderInputSchema.safeParse({ customerId: "c", deliveryDate: "2026-07-28", productId: "p", quantity: 2.5 }).success).toBe(false);
+    // Quantities arrive from a form as strings.
+    expect(orderInputSchema.safeParse(one("12")).success).toBe(true);
+
+    expect(orderInputSchema.safeParse({ ...one(1), customerId: "" }).success).toBe(false);
+    expect(orderInputSchema.safeParse({ ...one(1), deliveryDate: "28/07/2026" }).success).toBe(false);
+    expect(orderInputSchema.safeParse(one(0)).success).toBe(false);
+    expect(orderInputSchema.safeParse(one(-5)).success).toBe(false);
+    expect(orderInputSchema.safeParse(one(2.5)).success).toBe(false);
+    expect(orderInputSchema.safeParse({ ...base, lines: [] }).success).toBe(false);
+  });
+
+  /**
+   * An order carries several breads since decision 0026, so the same bread
+   * appearing twice is a mis-click rather than a customer wanting two rows —
+   * and silently adding them up would hide it.
+   */
+  it("RULE: one bread cannot appear twice on the same order", () => {
+    const twoBreads = {
+      customerId: "cus-1",
+      deliveryDate: "2026-07-28",
+      lines: [
+        { productId: "prd-1", quantity: 10 },
+        { productId: "prd-2", quantity: 5 },
+      ],
+    };
+    expect(orderInputSchema.safeParse(twoBreads).success).toBe(true);
+
+    const sameTwice = {
+      ...twoBreads,
+      lines: [
+        { productId: "prd-1", quantity: 10 },
+        { productId: "prd-1", quantity: 5 },
+      ],
+    };
+    expect(orderInputSchema.safeParse(sameTwice).success).toBe(false);
   });
 
   it("RULE: a payment must be above zero", () => {
@@ -823,32 +907,32 @@ describe("schemas", () => {
     expect(reportRangeSchema.safeParse({ from: "2026-07-31", to: "2026-07-01" }).success).toBe(false);
   });
 
-  it("RULE: a delivery quantity cannot be negative or fractional", () => {
+  it("RULE: a delivered quantity cannot be negative or fractional", () => {
     const base = { orderId: "ord-1", status: "partial" as const };
-    expect(recordDeliverySchema.safeParse({ ...base, deliveredQuantity: -1 }).success).toBe(false);
-    expect(recordDeliverySchema.safeParse({ ...base, deliveredQuantity: 1.5 }).success).toBe(false);
+    expect(recordDeliverySchema.safeParse({ ...base, deliveredByLine: { a: -1 } }).success).toBe(false);
+    expect(recordDeliverySchema.safeParse({ ...base, deliveredByLine: { a: 1.5 } }).success).toBe(false);
+    expect(recordDeliverySchema.safeParse({ ...base, deliveredByLine: { a: "3" } }).success).toBe(true);
   });
 
   /**
    * The schema cannot know how many were ordered, so a part delivery of 9,999
-   * still parses. The ceiling is enforced where the ordered quantity is
-   * actually known — `recordDelivery` in the admin delivery service, which
-   * looks the order up rather than trusting the submission. See the service
-   * tests for that half.
+   * still parses. The ceiling is enforced where the order is actually known —
+   * `resolveDeliveredLines`, which reads the real order rather than trusting
+   * the submission. See deliveries.test.ts for that half.
    */
   it("RULE: the schema shapes a delivery, it does not price it", () => {
     expect(
       recordDeliverySchema.safeParse({
         orderId: "ord-1",
         status: "partial",
-        deliveredQuantity: 9999,
+        deliveredByLine: { a: 9999 },
       }).success,
     ).toBe(true);
   });
 
   /** REGRESSION: these were accepted, then flowed into date arithmetic. */
   it("RULE: a date-shaped string that is not a real day is rejected", () => {
-    const base = { customerId: "c", productId: "p", quantity: 1 };
+    const base = { customerId: "c", lines: [{ productId: "p", quantity: 1 }] };
     expect(orderInputSchema.safeParse({ ...base, deliveryDate: "2026-13-45" }).success).toBe(false);
     expect(orderInputSchema.safeParse({ ...base, deliveryDate: "2026-02-31" }).success).toBe(false);
     expect(orderInputSchema.safeParse({ ...base, deliveryDate: "2026-02-29" }).success).toBe(false);

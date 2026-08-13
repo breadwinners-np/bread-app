@@ -9,6 +9,7 @@
 import {
   cedisToPesewas,
   customerAccount,
+  describeOrderLines,
   isAwaitingConfirmation,
   isPaymentCounted,
   orderQuantity,
@@ -20,7 +21,6 @@ import {
   type Payment,
   type PaymentDecisionInput,
   type PaymentInput,
-  type Product,
 } from "@bread/shared";
 
 import { supabase } from "@/lib/supabase";
@@ -29,7 +29,6 @@ import {
   loadDeliveries,
   loadOrders,
   loadPayments,
-  loadProducts,
 } from "./loaders";
 
 export interface PaymentWithContext {
@@ -43,20 +42,20 @@ export interface PaymentWithContext {
 export interface OpenOrderOption {
   id: string;
   deliveryDate: string;
-  productName: string;
+  /** The breads on it, as one line: "10 × Butter bread and 5 × Brown bread". */
+  description: string;
   quantity: number;
   outstandingPesewas: number;
 }
 
 export async function listPayments(): Promise<PaymentWithContext[]> {
-  const [payments, customers, orders, products] = await Promise.all([
+  const [payments, customers, orders] = await Promise.all([
     loadPayments(),
     loadCustomers(),
     loadOrders(),
-    loadProducts(),
   ]);
 
-  return payments.map((payment) => withContext(payment, customers, orders, products));
+  return payments.map((payment) => withContext(payment, customers, orders));
 }
 
 export async function listPaymentsForCustomer(
@@ -70,17 +69,16 @@ export async function listPaymentsForCustomer(
 export async function listPaymentsAwaitingConfirmation(): Promise<
   PaymentWithContext[]
 > {
-  const [payments, customers, orders, products] = await Promise.all([
+  const [payments, customers, orders] = await Promise.all([
     loadPayments(),
     loadCustomers(),
     loadOrders(),
-    loadProducts(),
   ]);
 
   return payments
     .filter(isAwaitingConfirmation)
     .sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
-    .map((payment) => withContext(payment, customers, orders, products));
+    .map((payment) => withContext(payment, customers, orders));
 }
 
 export async function getCustomerAccount(
@@ -108,12 +106,11 @@ export async function getCustomerAccount(
 export async function listOpenOrdersByCustomer(): Promise<
   Record<string, OpenOrderOption[]>
 > {
-  const [customers, orders, deliveries, payments, products] = await Promise.all([
+  const [customers, orders, deliveries, payments] = await Promise.all([
     loadCustomers(),
     loadOrders(),
     loadDeliveries(),
     loadPayments(),
-    loadProducts(),
   ]);
 
   const result: Record<string, OpenOrderOption[]> = {};
@@ -130,7 +127,7 @@ export async function listOpenOrdersByCustomer(): Promise<
       .map((line) => ({
         id: line.order.id,
         deliveryDate: line.order.deliveryDate,
-        productName: productNameFor(line.order, products),
+        description: describeOrderLines(line.order),
         quantity: orderQuantity(line.order),
         outstandingPesewas: line.outstandingPesewas,
       }));
@@ -255,7 +252,6 @@ function withContext(
   payment: Payment,
   customers: readonly Customer[],
   orders: readonly Order[],
-  products: readonly Product[],
 ): PaymentWithContext {
   const customer = customers.find((entry) => entry.id === payment.customerId);
   const order = payment.orderId
@@ -265,16 +261,6 @@ function withContext(
   return {
     payment,
     customerName: customer?.name ?? "Unknown customer",
-    orderLabel: order
-      ? `${orderQuantity(order)} × ${productNameFor(order, products)}`
-      : null,
+    orderLabel: order ? describeOrderLines(order) : null,
   };
-}
-
-function productNameFor(order: Order, products: readonly Product[]): string {
-  const firstLine = order.lines[0];
-  return (
-    products.find((product) => product.id === firstLine?.productId)?.name ??
-    "Unknown bread"
-  );
 }

@@ -44,32 +44,45 @@ try {
   ).body[0];
   created.customers.push(customer.id);
 
-  // A basket of two breads becomes two orders (decision 0023).
+  // A basket of two breads is ONE order with two lines (decision 0026).
   const products = (await asServer("products?select=id,name,price_pesewas&order=name&limit=2")).body;
 
-  for (const product of products) {
-    const id = (
-      await rpcAsServer("place_order", {
-        p_customer_id: customer.id,
-        p_delivery_date: TOMORROW,
-        p_source: "app",
-        p_lines: [
-          {
-            product_id: product.id,
-            product_name: product.name,
-            unit_price_pesewas: product.price_pesewas,
-            quantity: 2,
-          },
-        ],
-        p_payment_method: "card",
-        p_payment_status: "pending",
-      })
-    ).body;
-    created.orders.push(id);
-  }
+  const orderId = (
+    await rpcAsServer("place_order", {
+      p_customer_id: customer.id,
+      p_delivery_date: TOMORROW,
+      p_source: "app",
+      p_lines: products.map((product) => ({
+        product_id: product.id,
+        product_name: product.name,
+        unit_price_pesewas: product.price_pesewas,
+        quantity: 2,
+      })),
+      p_payment_method: "card",
+      p_payment_status: "pending",
+      p_delivery_address: "12 Test Street, Testville",
+    })
+  ).body;
+  created.orders.push(orderId);
 
   group("A customer places an order");
-  check("a two-bread basket becomes two orders", created.orders.length === 2 && created.orders.every(Boolean));
+
+  const written = (
+    await asServer(`orders?id=eq.${orderId}&select=delivery_address,order_items(product_name,position)`)
+  ).body[0];
+
+  check("a two-bread basket is one order", created.orders.length === 1 && Boolean(orderId));
+  check("carrying both breads", (written?.order_items?.length ?? 0) === 2);
+  check(
+    "in the order the customer chose them",
+    [...(written?.order_items ?? [])].sort((a, b) => a.position - b.position)
+      .map((item) => item.product_name)
+      .join(" | ") === products.map((product) => product.name).join(" | "),
+  );
+  check(
+    "going where the customer asked, not to their own address",
+    written?.delivery_address === "12 Test Street, Testville",
+  );
 
   const beforePaying = await screen("orders");
   check(
@@ -78,12 +91,22 @@ try {
   );
 
   group("The customer pays");
-  for (const id of created.orders) {
-    await rpcAsServer("confirm_order_payment", { p_order_id: id, p_reference: "LOOP-REF", p_method: "card" });
-  }
+  await rpcAsServer("confirm_order_payment", {
+    p_order_id: orderId,
+    p_reference: "LOOP-REF",
+    p_method: "card",
+  });
 
   const orders = await screen("orders");
   check("the order appears on the Orders page", orders.includes(NAME));
+  check(
+    "the customer is named once, not once per bread",
+    (orders.match(new RegExp(NAME, "g")) || []).length === 1,
+  );
+  check(
+    "with both breads listed under them",
+    products.every((product) => orders.includes(product.name)),
+  );
   check("tagged as an online order", orders.includes("Online"));
   check("and can be cancelled from there", orders.includes("Cancel"));
 
@@ -93,6 +116,7 @@ try {
 
   const round = await screen(`distribution?date=${TOMORROW}`);
   check("the bread is on the round for the day the customer chose", round.includes(NAME));
+  check("as one drop, with the address the customer gave", round.includes("12 Test Street, Testville"));
 
   const payments = await screen("payments");
   check("the card payment shows on the Payments page", payments.includes(NAME));
@@ -104,7 +128,7 @@ try {
   group("Cancelling an order");
   const roundBefore = (round.match(new RegExp(NAME, "g")) || []).length;
 
-  await asServer(`orders?id=eq.${created.orders[0]}`, {
+  await asServer(`orders?id=eq.${orderId}`, {
     method: "PATCH",
     body: JSON.stringify({ cancelled_at: new Date().toISOString() }),
   });

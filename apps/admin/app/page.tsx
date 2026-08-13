@@ -1,5 +1,6 @@
 import {
   DELIVERY_STATUS_LABELS,
+  describeOrderLines,
   deliveryProgress,
   formatGhs,
   formatLongDate,
@@ -138,8 +139,10 @@ export default async function TodayPage() {
                     {item.customer.name}
                   </p>
                   <p className="text-stone-600">
-                    {item.orderedQuantity} × {item.productName} ·{" "}
-                    {item.customer.area}
+                    {describeOrderLines(item.order)}
+                  </p>
+                  <p className="text-sm text-stone-500">
+                    {item.order.deliveryAddress || item.customer.area}
                   </p>
                 </div>
 

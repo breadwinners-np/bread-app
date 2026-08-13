@@ -27,6 +27,24 @@ export function orderQuantity(order: Order): number {
   return order.lines.reduce((total, line) => total + line.quantity, 0);
 }
 
+/**
+ * An order's breads as one line of prose — "10 × Butter bread and 5 × Brown
+ * bread" — for the places that need a sentence rather than a list: a
+ * confirmation question, a payment's label, a page subtitle.
+ *
+ * Screens that have room show the lines properly, stacked under the customer's
+ * name. This is for the ones that do not.
+ */
+export function describeOrderLines(order: Order): string {
+  const parts = order.lines.map(
+    (line) => `${line.quantity} × ${line.productName}`,
+  );
+
+  if (parts.length <= 1) return parts[0] ?? "nothing";
+
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
 /** What several orders are worth together. */
 export function ordersTotalPesewas(orders: readonly Order[]): number {
   return sumPesewas(orders.map(orderTotalPesewas));
@@ -51,39 +69,71 @@ export function orderStatusForDelivery(status: DeliveryStatus): OrderStatus {
   }
 }
 
+/** How many loaves of each bread arrived, once a delivery has been recorded. */
+export interface DeliveredLine {
+  orderLineId: string;
+  quantity: number;
+}
+
 /**
- * How much actually arrived, decided rather than taken on trust.
+ * What actually arrived, bread by bread, decided rather than taken on trust.
  *
  * Server actions are reachable by direct POST, so every field in a submission
- * is under the caller's control — including the ordered quantity the form sends
- * alongside it. The caller passes what the order really says, and this decides
- * the rest: a full delivery is worth the whole order and a failed one nothing,
- * so neither needs a number from the form at all. Only a part delivery does,
- * and it cannot exceed what was ordered.
+ * is under the caller's control — including the quantities the form sends
+ * alongside it. The caller passes the real order, and this decides the rest: a
+ * full delivery is the whole order and a failed one is nothing, so neither
+ * needs a number from the form at all. Only a part delivery does.
+ *
+ * Per bread rather than one total, because an order can carry several breads
+ * at different prices: "they took 8 of the 15" would otherwise have to guess
+ * which 8, and the guess would change what the customer owes.
  */
-export function resolveDeliveredQuantity(
+export function resolveDeliveredLines(
   status: Exclude<DeliveryStatus, "pending">,
-  requested: number,
-  orderedQuantity: number,
-): number {
-  switch (status) {
-    case "delivered":
-      return orderedQuantity;
-    case "not_delivered":
-      return 0;
-    case "partial":
-      if (requested < 1) {
-        throw new Error(
-          "A part delivery has to be at least one. Use “could not deliver” if nothing arrived.",
-        );
-      }
-      if (requested > orderedQuantity) {
-        throw new Error(
-          `Only ${orderedQuantity} were ordered, so ${requested} cannot have been delivered`,
-        );
-      }
-      return requested;
+  requested: Readonly<Record<string, number>>,
+  order: Order,
+): DeliveredLine[] {
+  if (status === "delivered") {
+    return order.lines.map((line) => ({
+      orderLineId: line.id,
+      quantity: line.quantity,
+    }));
   }
+
+  if (status === "not_delivered") {
+    return order.lines.map((line) => ({ orderLineId: line.id, quantity: 0 }));
+  }
+
+  const lines = order.lines.map((line) => {
+    const value = requested[line.id] ?? 0;
+
+    if (!Number.isInteger(value) || value < 0) {
+      throw new Error(
+        `How many ${line.productName} arrived has to be a whole number, not ${value}`,
+      );
+    }
+    if (value > line.quantity) {
+      throw new Error(
+        `Only ${line.quantity} ${line.productName} were ordered, so ${value} cannot have been delivered`,
+      );
+    }
+
+    return { orderLineId: line.id, quantity: value };
+  });
+
+  const total = lines.reduce((sum, line) => sum + line.quantity, 0);
+  if (total < 1) {
+    throw new Error(
+      "A part delivery has to be at least one loaf. Use “could not deliver” if nothing arrived.",
+    );
+  }
+
+  return lines;
+}
+
+/** Total loaves that reached the customer, across every bread on the order. */
+export function orderDeliveredQuantity(order: Order): number {
+  return order.lines.reduce((total, line) => total + line.deliveredQuantity, 0);
 }
 
 export function isDeliveryComplete(delivery: Delivery): boolean {

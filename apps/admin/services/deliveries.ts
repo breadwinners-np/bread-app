@@ -11,7 +11,7 @@ import {
   monthOf,
   orderQuantity,
   outstandingReason,
-  resolveDeliveredQuantity,
+  resolveDeliveredLines,
   todayIso,
   type DeliveryListItem,
   type OutstandingReason,
@@ -20,7 +20,7 @@ import {
 } from "@bread/shared";
 
 import { supabase } from "@/lib/supabase";
-import { loadCustomers, loadDeliveries, loadOrders, loadProducts } from "./loaders";
+import { loadCustomers, loadDeliveries, loadOrders } from "./loaders";
 
 /** A delivery that still needs the owner to do something about it. */
 export interface OutstandingDelivery extends DeliveryListItem {
@@ -82,11 +82,10 @@ export async function listDeliveryDaysForMonth(
 export async function listDeliveriesForDate(
   date: string,
 ): Promise<DeliveryListItem[]> {
-  const [orders, deliveries, customers, products] = await Promise.all([
+  const [orders, deliveries, customers] = await Promise.all([
     loadOrders(),
     loadDeliveries(),
     loadCustomers(),
-    loadProducts(),
   ]);
 
   return orders
@@ -94,8 +93,6 @@ export async function listDeliveriesForDate(
     .map((order) => {
       const delivery = deliveries.find((entry) => entry.orderId === order.id);
       const customer = customers.find((entry) => entry.id === order.customerId);
-      const firstLine = order.lines[0];
-      const product = products.find((entry) => entry.id === firstLine?.productId);
 
       if (!delivery || !customer) return null;
 
@@ -103,11 +100,7 @@ export async function listDeliveriesForDate(
         order,
         customer,
         delivery,
-        productName: product?.name ?? "Unknown product",
-        orderedQuantity: order.lines.reduce(
-          (total, line) => total + line.quantity,
-          0,
-        ),
+        orderedQuantity: orderQuantity(order),
       } satisfies DeliveryListItem;
     })
     .filter((item): item is DeliveryListItem => item !== null)
@@ -122,11 +115,10 @@ export async function listDeliveriesForDate(
  * exactly the ones that matter.
  */
 export async function listOutstandingDeliveries(): Promise<OutstandingDelivery[]> {
-  const [orders, deliveries, customers, products] = await Promise.all([
+  const [orders, deliveries, customers] = await Promise.all([
     loadOrders(),
     loadDeliveries(),
     loadCustomers(),
-    loadProducts(),
   ]);
   const today = todayIso();
 
@@ -139,18 +131,11 @@ export async function listOutstandingDeliveries(): Promise<OutstandingDelivery[]
       const reason = outstandingReason(order, delivery, today);
       if (!reason) return null;
 
-      const firstLine = order.lines[0];
-      const product = products.find((entry) => entry.id === firstLine?.productId);
-
       return {
         order,
         customer,
         delivery,
-        productName: product?.name ?? "Unknown product",
-        orderedQuantity: order.lines.reduce(
-          (total, line) => total + line.quantity,
-          0,
-        ),
+        orderedQuantity: orderQuantity(order),
         reason,
         daysLate: daysBetween(order.deliveryDate, today),
       } satisfies OutstandingDelivery;
@@ -214,10 +199,14 @@ export async function rescheduleDelivery(
 /**
  * Record what happened to one delivery.
  *
- * The stored quantity is derived rather than taken on trust — see
- * `resolveDeliveredQuantity` in @bread/shared, which owns that rule so the
- * mobile app cannot arrive at a different answer. This is a single-table write
- * because the order's status is derived from the delivery rather than stored.
+ * The stored quantities are derived rather than taken on trust — see
+ * `resolveDeliveredLines` in @bread/shared, which owns that rule so the mobile
+ * app cannot arrive at a different answer.
+ *
+ * One RPC because this now writes two tables: how much of each bread arrived,
+ * and the delivery itself. A failure between the two would leave a delivery
+ * marked done whose breads still read as undelivered, and the customer's
+ * balance would quietly disagree with the screen.
  */
 export async function recordDelivery(input: RecordDeliveryInput): Promise<void> {
   const [orders, deliveries] = await Promise.all([loadOrders(), loadDeliveries()]);
@@ -229,21 +218,17 @@ export async function recordDelivery(input: RecordDeliveryInput): Promise<void> 
     throw new Error("That delivery does not exist");
   }
 
-  const deliveredQuantity = resolveDeliveredQuantity(
-    input.status,
-    input.deliveredQuantity,
-    orderQuantity(order),
-  );
+  const lines = resolveDeliveredLines(input.status, input.deliveredByLine, order);
 
-  const { error } = await supabase
-    .from("deliveries")
-    .update({
-      status: input.status,
-      delivered_quantity: deliveredQuantity,
-      delivered_at: new Date().toISOString(),
-      note: input.note ?? null,
-    })
-    .eq("order_id", input.orderId);
+  const { error } = await supabase.rpc("record_delivery", {
+    p_order_id: input.orderId,
+    p_status: input.status,
+    p_lines: lines.map((line) => ({
+      order_item_id: line.orderLineId,
+      quantity: line.quantity,
+    })),
+    p_note: input.note ?? null,
+  });
 
   if (error) throw new Error(`Could not record the delivery: ${error.message}`);
 }

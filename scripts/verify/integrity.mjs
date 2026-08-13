@@ -169,6 +169,7 @@ try {
     ["a line of zero loaves", "order_items", { order_id: orderId, product_id: product.id, product_name: "x", unit_price_pesewas: 100, quantity: 0 }],
     ["a negative quantity", "order_items", { order_id: orderId, product_id: product.id, product_name: "x", unit_price_pesewas: 100, quantity: -5 }],
     ["a negative price", "order_items", { order_id: orderId, product_id: product.id, product_name: "x", unit_price_pesewas: -100, quantity: 1 }],
+    ["more of a bread delivered than was ordered", "order_items", { order_id: orderId, product_id: product.id, product_name: "x", unit_price_pesewas: 100, quantity: 1, delivered_quantity: 5 }],
     ["a line on an order that does not exist", "order_items", { order_id: "00000000-0000-4000-8000-000000000000", product_id: product.id, product_name: "x", unit_price_pesewas: 100, quantity: 1 }],
     ["a payment of nothing", "payments", { customer_id: null, amount_pesewas: 0, method: "cash", source: "admin" }],
     ["an invented payment method", "payments", { customer_id: null, amount_pesewas: 100, method: "bitcoin", source: "admin" }],
