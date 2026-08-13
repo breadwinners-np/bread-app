@@ -94,7 +94,7 @@ export default async function CustomersPage() {
                         {customer.balancePesewas > 0
                           ? "they owe you"
                           : customer.balancePesewas < 0
-                            ? "you owe them"
+                            ? "in credit — bread still to come"
                             : "all settled"}
                       </p>
                       {customer.awaitingConfirmationPesewas > 0 && (

@@ -71,11 +71,11 @@ export default async function CustomerDetailPage({
 
       <StatRow>
         <StatTile
-          label="They owe you"
-          value={formatGhs(Math.max(0, account.balancePesewas))}
+          label={account.balancePesewas < 0 ? "They are in credit" : "They owe you"}
+          value={formatGhs(Math.abs(account.balancePesewas))}
           hint={
             account.balancePesewas < 0
-              ? `They have paid ${formatGhs(-account.balancePesewas)} too much`
+              ? "Paid ahead — bread still to deliver"
               : "Bread they have had but not paid for"
           }
         />

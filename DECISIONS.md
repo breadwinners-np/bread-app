@@ -91,6 +91,31 @@ midnight local.
 
 ---
 
+## 0025 — A negative balance reads as "in credit", never "you owe them"
+
+**Date:** 2026-08-13 · **Status:** Proposed · **Touches PAY-6**
+
+The admin Customers screen showed a customer who had paid ahead of delivery as
+**"you owe them GHS X"**. That is arithmetically true — `balance = delivered −
+paid`, so a customer who prepaid goes negative — but it reads alarmingly to a
+non-technical owner. A wholesale customer like Baatsonaa Total who pays the
+month's cheque up front sits deep in negative all month, and the screen made it
+look as though the bakery had run up a debt, when in fact the customer is simply
+owed **bread not yet delivered**.
+
+Decision: display a negative balance as credit, not as a debt the owner owes.
+The Customers list now says **"in credit — bread still to come"**, and the
+customer detail tile flips its label to **"They are in credit"** with the hint
+**"Paid ahead — bread still to deliver"**. Wording only — the balance
+arithmetic is untouched, and money moves the same way it always did.
+
+This does **not** answer **PAY-6**. Whether a customer may go into credit at
+all, and up to what limit, is still open — this only fixes how an
+already-possible negative balance is described. If PAY-6 later forbids credit,
+this wording stops appearing on its own.
+
+---
+
 ## 0024 — Database functions are closed to the public key by default
 
 **Date:** 2026-08-13 · **Status:** Proposed
