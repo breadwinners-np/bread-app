@@ -8,22 +8,20 @@
 
 import { buildReport, type DateRange, type Report } from "@bread/shared";
 
-import { getStore, simulateLatency } from "./store";
+import { loadStore } from "./loaders";
 
 export async function getReport(range: DateRange): Promise<Report> {
-  const store = getStore();
+  const store = await loadStore();
 
-  return simulateLatency(
-    buildReport({
-      range,
-      orders: store.orders,
-      deliveries: store.deliveries,
-      payments: store.payments,
-      purchases: store.purchases,
-      supplyItems: store.supplyItems,
-      costs: store.costs,
-      products: store.products,
-      customers: store.customers,
-    }),
-  );
+  return buildReport({
+    range,
+    orders: store.orders,
+    deliveries: store.deliveries,
+    payments: store.payments,
+    purchases: store.purchases,
+    supplyItems: store.supplyItems,
+    costs: store.costs,
+    products: store.products,
+    customers: store.customers,
+  });
 }

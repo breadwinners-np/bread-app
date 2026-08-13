@@ -49,8 +49,15 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "Cash",
   cheque: "Cheque",
   mobile_money: "Mobile money",
+  card: "Card",
 };
 
+/**
+ * What the owner can choose when recording money she has taken. `card` is
+ * missing on purpose: a card payment can only reach the system through the
+ * online checkout, so offering it here would invite her to record money that
+ * never went through a terminal she does not have.
+ */
 export const PAYMENT_METHOD_OPTIONS: readonly PaymentMethod[] = [
   "cash",
   "cheque",

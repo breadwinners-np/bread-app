@@ -10,8 +10,8 @@ import {
   daysBetween,
   monthOf,
   orderQuantity,
-  orderStatusForDelivery,
   outstandingReason,
+  resolveDeliveredQuantity,
   todayIso,
   type DeliveryListItem,
   type OutstandingReason,
@@ -19,7 +19,8 @@ import {
   type RescheduleDeliveryInput,
 } from "@bread/shared";
 
-import { getStore, simulateLatency } from "./store";
+import { supabase } from "@/lib/supabase";
+import { loadCustomers, loadDeliveries, loadOrders, loadProducts } from "./loaders";
 
 /** A delivery that still needs the owner to do something about it. */
 export interface OutstandingDelivery extends DeliveryListItem {
@@ -49,14 +50,14 @@ export interface DeliveryDaySummary {
 export async function listDeliveryDaysForMonth(
   month: string,
 ): Promise<Record<string, DeliveryDaySummary>> {
-  const store = getStore();
+  const [orders, deliveries] = await Promise.all([loadOrders(), loadDeliveries()]);
   const days: Record<string, DeliveryDaySummary> = {};
 
-  for (const order of store.orders) {
+  for (const order of orders) {
     if (order.status === "cancelled") continue;
     if (monthOf(order.deliveryDate) !== month) continue;
 
-    const delivery = store.deliveries.find((entry) => entry.orderId === order.id);
+    const delivery = deliveries.find((entry) => entry.orderId === order.id);
     if (!delivery) continue;
 
     const day = (days[order.deliveryDate] ??= {
@@ -75,21 +76,26 @@ export async function listDeliveryDaysForMonth(
     if (delivery.status === "not_delivered") day.failed += 1;
   }
 
-  return simulateLatency(days);
+  return days;
 }
 
 export async function listDeliveriesForDate(
   date: string,
 ): Promise<DeliveryListItem[]> {
-  const store = getStore();
+  const [orders, deliveries, customers, products] = await Promise.all([
+    loadOrders(),
+    loadDeliveries(),
+    loadCustomers(),
+    loadProducts(),
+  ]);
 
-  const items = store.orders
+  return orders
     .filter((order) => order.deliveryDate === date && order.status !== "cancelled")
     .map((order) => {
-      const delivery = store.deliveries.find((entry) => entry.orderId === order.id);
-      const customer = store.customers.find((entry) => entry.id === order.customerId);
+      const delivery = deliveries.find((entry) => entry.orderId === order.id);
+      const customer = customers.find((entry) => entry.id === order.customerId);
       const firstLine = order.lines[0];
-      const product = store.products.find((entry) => entry.id === firstLine?.productId);
+      const product = products.find((entry) => entry.id === firstLine?.productId);
 
       if (!delivery || !customer) return null;
 
@@ -106,8 +112,6 @@ export async function listDeliveriesForDate(
     })
     .filter((item): item is DeliveryListItem => item !== null)
     .sort((a, b) => a.customer.name.localeCompare(b.customer.name));
-
-  return simulateLatency(items);
 }
 
 /**
@@ -118,20 +122,25 @@ export async function listDeliveriesForDate(
  * exactly the ones that matter.
  */
 export async function listOutstandingDeliveries(): Promise<OutstandingDelivery[]> {
-  const store = getStore();
+  const [orders, deliveries, customers, products] = await Promise.all([
+    loadOrders(),
+    loadDeliveries(),
+    loadCustomers(),
+    loadProducts(),
+  ]);
   const today = todayIso();
 
-  const items = store.orders
+  return orders
     .map((order) => {
-      const delivery = store.deliveries.find((entry) => entry.orderId === order.id);
-      const customer = store.customers.find((entry) => entry.id === order.customerId);
+      const delivery = deliveries.find((entry) => entry.orderId === order.id);
+      const customer = customers.find((entry) => entry.id === order.customerId);
       if (!delivery || !customer) return null;
 
       const reason = outstandingReason(order, delivery, today);
       if (!reason) return null;
 
       const firstLine = order.lines[0];
-      const product = store.products.find((entry) => entry.id === firstLine?.productId);
+      const product = products.find((entry) => entry.id === firstLine?.productId);
 
       return {
         order,
@@ -148,8 +157,6 @@ export async function listOutstandingDeliveries(): Promise<OutstandingDelivery[]
     })
     .filter((item): item is OutstandingDelivery => item !== null)
     .sort((a, b) => a.order.deliveryDate.localeCompare(b.order.deliveryDate));
-
-  return simulateLatency(items);
 }
 
 /**
@@ -159,6 +166,9 @@ export async function listOutstandingDeliveries(): Promise<OutstandingDelivery[]
  * order stays equal to one obligation and a rescheduled drop is never billed
  * twice. The original date is kept on the order so the move is visible.
  *
+ * The order's status is not written: it follows from the delivery going back to
+ * pending, which reads as scheduled again.
+ *
  * OPEN: whether each attempt should survive as its own record, and whether a
  * repeatedly-failed delivery is eventually written off, are undecided. See the
  * open questions in DECISIONS.md.
@@ -166,11 +176,13 @@ export async function listOutstandingDeliveries(): Promise<OutstandingDelivery[]
 export async function rescheduleDelivery(
   input: RescheduleDeliveryInput,
 ): Promise<void> {
-  const store = getStore();
+  const [orders, deliveries] = await Promise.all([loadOrders(), loadDeliveries()]);
 
-  const order = store.orders.find((entry) => entry.id === input.orderId);
-  const delivery = store.deliveries.find((entry) => entry.orderId === input.orderId);
+  const order = orders.find((entry) => entry.id === input.orderId);
+  const delivery = deliveries.find((entry) => entry.orderId === input.orderId);
 
+  // Checked here rather than left to the update, because an UPDATE against a
+  // row that does not exist succeeds with nothing changed.
   if (!order || !delivery) {
     throw new Error("That delivery does not exist");
   }
@@ -179,71 +191,59 @@ export async function rescheduleDelivery(
     throw new Error("Pick a day after the one it was originally due");
   }
 
-  order.rescheduledFrom = order.rescheduledFrom ?? order.deliveryDate;
-  order.deliveryDate = input.newDate;
-  order.status = "scheduled";
+  const { error: orderError } = await supabase
+    .from("orders")
+    .update({
+      rescheduled_from: order.rescheduledFrom ?? order.deliveryDate,
+      delivery_date: input.newDate,
+    })
+    .eq("id", order.id);
 
-  delivery.status = "pending";
-  delivery.deliveredQuantity = 0;
-  delivery.deliveredAt = null;
+  if (orderError) throw new Error(`Could not move the delivery: ${orderError.message}`);
 
-  await simulateLatency(null);
+  const { error: deliveryError } = await supabase
+    .from("deliveries")
+    .update({ status: "pending", delivered_quantity: 0, delivered_at: null })
+    .eq("order_id", order.id);
+
+  if (deliveryError) {
+    throw new Error(`Could not move the delivery: ${deliveryError.message}`);
+  }
 }
 
 /**
  * Record what happened to one delivery.
  *
- * The stored quantity is derived here rather than taken on trust. Server
- * actions are reachable by direct POST, so every field in the submission is
- * under the caller's control — including the ordered quantity the form sends
- * alongside it. This function looks the order up and is the only thing that
- * knows the real number.
- *
- * A full delivery is worth the whole order and a failed one is worth nothing,
- * so neither needs a quantity from the caller at all. Only a part delivery
- * does, and it cannot exceed what was ordered.
+ * The stored quantity is derived rather than taken on trust — see
+ * `resolveDeliveredQuantity` in @bread/shared, which owns that rule so the
+ * mobile app cannot arrive at a different answer. This is a single-table write
+ * because the order's status is derived from the delivery rather than stored.
  */
 export async function recordDelivery(input: RecordDeliveryInput): Promise<void> {
-  const store = getStore();
+  const [orders, deliveries] = await Promise.all([loadOrders(), loadDeliveries()]);
 
-  const delivery = store.deliveries.find((entry) => entry.orderId === input.orderId);
-  const order = store.orders.find((entry) => entry.id === input.orderId);
+  const delivery = deliveries.find((entry) => entry.orderId === input.orderId);
+  const order = orders.find((entry) => entry.id === input.orderId);
 
   if (!delivery || !order) {
     throw new Error("That delivery does not exist");
   }
 
-  const orderedQuantity = orderQuantity(order);
-  let deliveredQuantity: number;
+  const deliveredQuantity = resolveDeliveredQuantity(
+    input.status,
+    input.deliveredQuantity,
+    orderQuantity(order),
+  );
 
-  switch (input.status) {
-    case "delivered":
-      deliveredQuantity = orderedQuantity;
-      break;
-    case "not_delivered":
-      deliveredQuantity = 0;
-      break;
-    case "partial":
-      if (input.deliveredQuantity < 1) {
-        throw new Error(
-          "A part delivery has to be at least one. Use “could not deliver” if nothing arrived.",
-        );
-      }
-      if (input.deliveredQuantity > orderedQuantity) {
-        throw new Error(
-          `Only ${orderedQuantity} were ordered, so ${input.deliveredQuantity} cannot have been delivered`,
-        );
-      }
-      deliveredQuantity = input.deliveredQuantity;
-      break;
-  }
+  const { error } = await supabase
+    .from("deliveries")
+    .update({
+      status: input.status,
+      delivered_quantity: deliveredQuantity,
+      delivered_at: new Date().toISOString(),
+      note: input.note ?? null,
+    })
+    .eq("order_id", input.orderId);
 
-  delivery.status = input.status;
-  delivery.deliveredQuantity = deliveredQuantity;
-  delivery.deliveredAt = new Date().toISOString();
-  delivery.note = input.note;
-
-  order.status = orderStatusForDelivery(input.status);
-
-  await simulateLatency(null);
+  if (error) throw new Error(`Could not record the delivery: ${error.message}`);
 }

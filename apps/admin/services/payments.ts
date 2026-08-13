@@ -14,15 +14,23 @@ import {
   orderQuantity,
   startOfMonth,
   todayIso,
+  type Customer,
   type CustomerAccount,
   type Order,
   type Payment,
-  type PaymentClaimInput,
   type PaymentDecisionInput,
   type PaymentInput,
+  type Product,
 } from "@bread/shared";
 
-import { getStore, newId, simulateLatency } from "./store";
+import { supabase } from "@/lib/supabase";
+import {
+  loadCustomers,
+  loadDeliveries,
+  loadOrders,
+  loadPayments,
+  loadProducts,
+} from "./loaders";
 
 export interface PaymentWithContext {
   payment: Payment;
@@ -41,52 +49,53 @@ export interface OpenOrderOption {
 }
 
 export async function listPayments(): Promise<PaymentWithContext[]> {
-  const store = getStore();
+  const [payments, customers, orders, products] = await Promise.all([
+    loadPayments(),
+    loadCustomers(),
+    loadOrders(),
+    loadProducts(),
+  ]);
 
-  const payments = [...store.payments]
-    .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
-    .map(withContext);
-
-  return simulateLatency(payments);
+  return payments.map((payment) => withContext(payment, customers, orders, products));
 }
 
 export async function listPaymentsForCustomer(
   customerId: string,
 ): Promise<Payment[]> {
-  const store = getStore();
-
-  const payments = store.payments
-    .filter((payment) => payment.customerId === customerId)
-    .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
-
-  return simulateLatency(payments);
+  const payments = await loadPayments();
+  return payments.filter((payment) => payment.customerId === customerId);
 }
 
 /** Payments a customer reported that the owner has not ruled on yet. */
 export async function listPaymentsAwaitingConfirmation(): Promise<
   PaymentWithContext[]
 > {
-  const store = getStore();
+  const [payments, customers, orders, products] = await Promise.all([
+    loadPayments(),
+    loadCustomers(),
+    loadOrders(),
+    loadProducts(),
+  ]);
 
-  const pending = store.payments
+  return payments
     .filter(isAwaitingConfirmation)
     .sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
-    .map(withContext);
-
-  return simulateLatency(pending);
+    .map((payment) => withContext(payment, customers, orders, products));
 }
 
 export async function getCustomerAccount(
   customerId: string,
 ): Promise<CustomerAccount> {
-  const store = getStore();
+  const [orders, deliveries, payments] = await Promise.all([
+    loadOrders(),
+    loadDeliveries(),
+    loadPayments(),
+  ]);
 
-  return simulateLatency(
-    customerAccount(
-      store.orders.filter((order) => order.customerId === customerId),
-      store.deliveries,
-      store.payments.filter((payment) => payment.customerId === customerId),
-    ),
+  return customerAccount(
+    orders.filter((order) => order.customerId === customerId),
+    deliveries,
+    payments.filter((payment) => payment.customerId === customerId),
   );
 }
 
@@ -94,20 +103,26 @@ export async function getCustomerAccount(
  * Every customer's unsettled orders, keyed by customer.
  *
  * The record-a-payment form needs the orders for whichever customer is picked,
- * and the prototype has no query layer to ask again on change, so it takes them
- * all at once. Against Supabase this becomes a query per selection.
+ * and takes them all at once so choosing a customer does not wait on a query.
  */
 export async function listOpenOrdersByCustomer(): Promise<
   Record<string, OpenOrderOption[]>
 > {
-  const store = getStore();
+  const [customers, orders, deliveries, payments, products] = await Promise.all([
+    loadCustomers(),
+    loadOrders(),
+    loadDeliveries(),
+    loadPayments(),
+    loadProducts(),
+  ]);
+
   const result: Record<string, OpenOrderOption[]> = {};
 
-  for (const customer of store.customers) {
+  for (const customer of customers) {
     const account = customerAccount(
-      store.orders.filter((order) => order.customerId === customer.id),
-      store.deliveries,
-      store.payments.filter((payment) => payment.customerId === customer.id),
+      orders.filter((order) => order.customerId === customer.id),
+      deliveries,
+      payments.filter((payment) => payment.customerId === customer.id),
     );
 
     const open = account.lines
@@ -115,7 +130,7 @@ export async function listOpenOrdersByCustomer(): Promise<
       .map((line) => ({
         id: line.order.id,
         deliveryDate: line.order.deliveryDate,
-        productName: productNameFor(line.order),
+        productName: productNameFor(line.order, products),
         quantity: orderQuantity(line.order),
         outstandingPesewas: line.outstandingPesewas,
       }));
@@ -123,7 +138,7 @@ export async function listOpenOrdersByCustomer(): Promise<
     if (open.length > 0) result[customer.id] = open;
   }
 
-  return simulateLatency(result);
+  return result;
 }
 
 export interface PaymentsOverview {
@@ -134,30 +149,36 @@ export interface PaymentsOverview {
 }
 
 export async function getPaymentsOverview(): Promise<PaymentsOverview> {
-  const store = getStore();
+  const [customers, orders, deliveries, payments] = await Promise.all([
+    loadCustomers(),
+    loadOrders(),
+    loadDeliveries(),
+    loadPayments(),
+  ]);
+
   const today = todayIso();
   const monthStart = startOfMonth(today);
 
-  const receivedThisMonthPesewas = store.payments
+  const receivedThisMonthPesewas = payments
     .filter(isPaymentCounted)
     .filter((payment) => payment.recordedAt.slice(0, 10) >= monthStart)
     .reduce((total, payment) => total + payment.amountPesewas, 0);
 
   let owedAcrossCustomersPesewas = 0;
-  for (const customer of store.customers) {
+  for (const customer of customers) {
     const account = customerAccount(
-      store.orders.filter((order) => order.customerId === customer.id),
-      store.deliveries,
-      store.payments.filter((payment) => payment.customerId === customer.id),
+      orders.filter((order) => order.customerId === customer.id),
+      deliveries,
+      payments.filter((payment) => payment.customerId === customer.id),
     );
     // Only money owed to the bakery adds up here. A customer in credit does not
     // cancel out another customer's debt.
     owedAcrossCustomersPesewas += Math.max(0, account.balancePesewas);
   }
 
-  const pending = store.payments.filter(isAwaitingConfirmation);
+  const pending = payments.filter(isAwaitingConfirmation);
 
-  return simulateLatency({
+  return {
     receivedThisMonthPesewas,
     owedAcrossCustomersPesewas,
     awaitingConfirmationPesewas: pending.reduce(
@@ -165,124 +186,95 @@ export async function getPaymentsOverview(): Promise<PaymentsOverview> {
       0,
     ),
     awaitingConfirmationCount: pending.length,
-  });
+  };
 }
 
 /**
  * Record money the owner has in hand. Confirmed as it is saved: she is the one
  * holding the cash or the cheque, so there is nobody to confirm it with.
  */
-export async function createPayment(input: PaymentInput): Promise<Payment> {
-  const store = getStore();
+export async function createPayment(input: PaymentInput): Promise<void> {
+  const [customers, orders] = await Promise.all([loadCustomers(), loadOrders()]);
 
-  const customer = store.customers.find((entry) => entry.id === input.customerId);
+  const customer = customers.find((entry) => entry.id === input.customerId);
   if (!customer) {
     throw new Error("That customer does not exist");
   }
 
   if (input.orderId) {
-    const order = store.orders.find((entry) => entry.id === input.orderId);
+    const order = orders.find((entry) => entry.id === input.orderId);
     if (!order || order.customerId !== customer.id) {
       throw new Error("That order does not belong to this customer");
     }
   }
 
   const now = new Date().toISOString();
-  const payment: Payment = {
-    id: newId("pay"),
-    customerId: customer.id,
-    orderId: input.orderId || null,
-    amountPesewas: cedisToPesewas(input.amountCedis),
+  const { error } = await supabase.from("payments").insert({
+    customer_id: customer.id,
+    order_id: input.orderId || null,
+    amount_pesewas: cedisToPesewas(input.amountCedis),
     method: input.method,
-    reference: input.reference,
-    note: input.note,
+    reference: input.reference ?? null,
+    note: input.note ?? null,
     source: "admin",
-    recordedAt: now,
-    confirmedAt: now,
-  };
+    recorded_at: now,
+    confirmed_at: now,
+  });
 
-  store.payments.push(payment);
-  return simulateLatency(payment);
-}
-
-/**
- * Record that a customer says they have paid.
- *
- * NOT REACHABLE YET — the buyer app does not exist. This is the seam it will
- * arrive through: the claim is stored unconfirmed, counts for nothing, and
- * appears on the owner's payments screen for her to rule on (decision 0013).
- */
-export async function recordPaymentClaim(
-  input: PaymentClaimInput,
-): Promise<Payment> {
-  const store = getStore();
-
-  const customer = store.customers.find((entry) => entry.id === input.customerId);
-  if (!customer) {
-    throw new Error("That customer does not exist");
-  }
-
-  const payment: Payment = {
-    id: newId("pay"),
-    customerId: customer.id,
-    orderId: input.orderId || null,
-    amountPesewas: cedisToPesewas(input.amountCedis),
-    method: input.method,
-    reference: input.reference,
-    source: "app",
-    recordedAt: new Date().toISOString(),
-    confirmedAt: null,
-  };
-
-  store.payments.push(payment);
-  return simulateLatency(payment);
+  if (error) throw new Error(`Could not save the payment: ${error.message}`);
 }
 
 /** The owner agreeing, or not, that a reported payment arrived. */
 export async function decidePayment(
   input: PaymentDecisionInput,
 ): Promise<void> {
-  const store = getStore();
+  const payments = await loadPayments();
 
-  const payment = store.payments.find((entry) => entry.id === input.paymentId);
+  // An UPDATE against a row that does not exist changes nothing and reports no
+  // error, so the check has to happen here.
+  const payment = payments.find((entry) => entry.id === input.paymentId);
   if (!payment) {
     throw new Error("That payment does not exist");
   }
 
   const now = new Date().toISOString();
-  if (input.decision === "confirm") {
-    payment.confirmedAt = now;
-    payment.rejectedAt = null;
-  } else {
-    payment.rejectedAt = now;
-    payment.confirmedAt = null;
-  }
+  const decision =
+    input.decision === "confirm"
+      ? { confirmed_at: now, rejected_at: null }
+      : { confirmed_at: null, rejected_at: now };
 
-  await simulateLatency(null);
+  const { error } = await supabase
+    .from("payments")
+    .update(decision)
+    .eq("id", input.paymentId);
+
+  if (error) throw new Error(`Could not save that decision: ${error.message}`);
 }
 
-function withContext(payment: Payment): PaymentWithContext {
-  const store = getStore();
-
-  const customer = store.customers.find((entry) => entry.id === payment.customerId);
+function withContext(
+  payment: Payment,
+  customers: readonly Customer[],
+  orders: readonly Order[],
+  products: readonly Product[],
+): PaymentWithContext {
+  const customer = customers.find((entry) => entry.id === payment.customerId);
   const order = payment.orderId
-    ? store.orders.find((entry) => entry.id === payment.orderId)
+    ? orders.find((entry) => entry.id === payment.orderId)
     : undefined;
 
   return {
     payment,
     customerName: customer?.name ?? "Unknown customer",
     orderLabel: order
-      ? `${orderQuantity(order)} × ${productNameFor(order)}`
+      ? `${orderQuantity(order)} × ${productNameFor(order, products)}`
       : null,
   };
 }
 
-function productNameFor(order: Order): string {
-  const store = getStore();
+function productNameFor(order: Order, products: readonly Product[]): string {
   const firstLine = order.lines[0];
   return (
-    store.products.find((product) => product.id === firstLine?.productId)?.name ??
+    products.find((product) => product.id === firstLine?.productId)?.name ??
     "Unknown bread"
   );
 }

@@ -19,7 +19,12 @@ export type DeliveryStatus =
   | "partial"
   | "not_delivered";
 
-export type PaymentMethod = "cash" | "cheque" | "mobile_money";
+/**
+ * `card` only ever arrives through the payment gateway. The owner has no card
+ * terminal, so it is deliberately absent from PAYMENT_METHOD_OPTIONS — she
+ * cannot record one by hand, only receive one.
+ */
+export type PaymentMethod = "cash" | "cheque" | "mobile_money" | "card";
 
 /**
  * Where a payment record came from. `admin` is the owner recording money she

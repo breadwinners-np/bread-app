@@ -16,8 +16,27 @@ import {
 import { createCustomer } from "@/services/customers";
 import { recordDelivery, rescheduleDelivery } from "@/services/deliveries";
 import { createPurchase } from "@/services/inventory";
-import { createOrder } from "@/services/orders";
+import { cancelOrder, createOrder } from "@/services/orders";
 import { createPayment, decidePayment } from "@/services/payments";
+
+/**
+ * Screens that change when an order, delivery or payment does. Listed once
+ * because almost every action below touches several of them — an order moving
+ * changes the day's round, the customer's balance and the month's report, and
+ * missing one leaves the owner looking at a stale number.
+ */
+const MONEY_AND_ROUND_PATHS = [
+  "/",
+  "/orders",
+  "/distribution",
+  "/payments",
+  "/customers",
+  "/reports",
+];
+
+function revalidateMoneyAndRound(): void {
+  for (const path of MONEY_AND_ROUND_PATHS) revalidatePath(path);
+}
 
 /**
  * Server actions stay thin: parse with a shared schema, call a service, then
@@ -49,8 +68,15 @@ export async function createCustomerAction(
     return { fieldErrors: fieldErrorsFrom(parsed.error) };
   }
 
-  await createCustomer(parsed.data);
-  revalidatePath("/customers");
+  try {
+    await createCustomer(parsed.data);
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Could not save that customer",
+    };
+  }
+
+  revalidateMoneyAndRound();
   redirect("/customers");
 }
 
@@ -58,8 +84,34 @@ export async function createOrderAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  // A customer phoning in for the first time can be created from this same
+  // form, so she does not lose the order she is halfway through writing down.
+  let customerId = formData.get("customerId");
+
+  if (formData.get("newCustomer") === "yes") {
+    const parsedCustomer = customerInputSchema.safeParse({
+      name: formData.get("newCustomerName"),
+      phone: formData.get("newCustomerPhone"),
+      type: formData.get("newCustomerType"),
+      area: formData.get("newCustomerArea"),
+    });
+
+    if (!parsedCustomer.success) {
+      return { fieldErrors: fieldErrorsFrom(parsedCustomer.error) };
+    }
+
+    try {
+      const customer = await createCustomer(parsedCustomer.data);
+      customerId = customer.id;
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : "Could not save that customer",
+      };
+    }
+  }
+
   const parsed = orderInputSchema.safeParse({
-    customerId: formData.get("customerId"),
+    customerId,
     deliveryDate: formData.get("deliveryDate"),
     productId: formData.get("productId"),
     quantity: formData.get("quantity"),
@@ -69,11 +121,38 @@ export async function createOrderAction(
     return { fieldErrors: fieldErrorsFrom(parsed.error) };
   }
 
-  await createOrder(parsed.data);
-  revalidatePath("/orders");
-  revalidatePath("/distribution");
-  revalidatePath("/");
+  try {
+    await createOrder(parsed.data);
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Could not save that order",
+    };
+  }
+
+  revalidateMoneyAndRound();
   redirect("/orders");
+}
+
+/**
+ * Cancel an order, keeping the record. Confirmed in the UI before it fires —
+ * this is the destructive one on the orders screen.
+ */
+export async function cancelOrderAction(formData: FormData): Promise<void> {
+  const orderId = formData.get("orderId");
+
+  if (typeof orderId !== "string" || !orderId) {
+    console.error("Cancel order called without an order id");
+    return;
+  }
+
+  try {
+    await cancelOrder(orderId);
+  } catch (error) {
+    console.error("Could not cancel that order", error);
+    return;
+  }
+
+  revalidateMoneyAndRound();
 }
 
 export async function recordDeliveryAction(formData: FormData): Promise<void> {
@@ -112,8 +191,7 @@ export async function recordDeliveryAction(formData: FormData): Promise<void> {
     return;
   }
 
-  revalidatePath("/distribution");
-  revalidatePath("/");
+  revalidateMoneyAndRound();
 }
 
 export async function createPaymentAction(
@@ -139,9 +217,7 @@ export async function createPaymentAction(
     return { error: error instanceof Error ? error.message : "Could not save that payment" };
   }
 
-  revalidatePath("/payments");
-  revalidatePath("/customers");
-  revalidatePath("/reports");
+  revalidateMoneyAndRound();
   redirect("/payments");
 }
 
@@ -164,9 +240,7 @@ export async function decidePaymentAction(formData: FormData): Promise<void> {
     return;
   }
 
-  revalidatePath("/payments");
-  revalidatePath("/customers");
-  revalidatePath("/reports");
+  revalidateMoneyAndRound();
 }
 
 export async function createPurchaseAction(
@@ -187,8 +261,16 @@ export async function createPurchaseAction(
     return { fieldErrors: fieldErrorsFrom(parsed.error) };
   }
 
-  await createPurchase(parsed.data);
+  try {
+    await createPurchase(parsed.data);
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Could not save that purchase",
+    };
+  }
+
   revalidatePath("/spending");
+  revalidatePath("/reports");
   revalidatePath("/");
   redirect("/spending");
 }
@@ -215,9 +297,7 @@ export async function rescheduleDeliveryAction(
     return;
   }
 
-  revalidatePath("/distribution");
-  revalidatePath("/orders");
-  revalidatePath("/");
+  revalidateMoneyAndRound();
 }
 
 function fieldErrorsFrom(error: {

@@ -51,6 +51,41 @@ export function orderStatusForDelivery(status: DeliveryStatus): OrderStatus {
   }
 }
 
+/**
+ * How much actually arrived, decided rather than taken on trust.
+ *
+ * Server actions are reachable by direct POST, so every field in a submission
+ * is under the caller's control — including the ordered quantity the form sends
+ * alongside it. The caller passes what the order really says, and this decides
+ * the rest: a full delivery is worth the whole order and a failed one nothing,
+ * so neither needs a number from the form at all. Only a part delivery does,
+ * and it cannot exceed what was ordered.
+ */
+export function resolveDeliveredQuantity(
+  status: Exclude<DeliveryStatus, "pending">,
+  requested: number,
+  orderedQuantity: number,
+): number {
+  switch (status) {
+    case "delivered":
+      return orderedQuantity;
+    case "not_delivered":
+      return 0;
+    case "partial":
+      if (requested < 1) {
+        throw new Error(
+          "A part delivery has to be at least one. Use “could not deliver” if nothing arrived.",
+        );
+      }
+      if (requested > orderedQuantity) {
+        throw new Error(
+          `Only ${orderedQuantity} were ordered, so ${requested} cannot have been delivered`,
+        );
+      }
+      return requested;
+  }
+}
+
 export function isDeliveryComplete(delivery: Delivery): boolean {
   return delivery.status === "delivered" || delivery.status === "partial";
 }

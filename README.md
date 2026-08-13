@@ -12,7 +12,8 @@ and a single shared database.
 | App | Who uses it | Where | What it does |
 | --- | --- | --- | --- |
 | `apps/admin` | The owner (sole administrator) | Laptop, web | Orders, daily distribution, costs, payments, reports |
-| `apps/mobile` | Wholesale and retail customers | Android phones and iPhones | Place orders, pay, confirm monthly quantities |
+| `apps/storefront` | Anyone, for the demo | Web | Place and pay for an order online. A prototype shown to the owner, not the real buyer app |
+| `apps/mobile` | Wholesale and retail customers | Android phones and iPhones | Place orders, pay, confirm monthly quantities. **Not built yet** |
 
 The apps never talk to each other. They share one Supabase database, and orders
 placed on a phone reach the owner's screen in near real time through Supabase
@@ -34,14 +35,16 @@ realtime.
 ```
 apps/
   admin/            Next.js admin web app
-  mobile/           Expo React Native buyer app
+  storefront/       Next.js customer ordering demo
+  mobile/           Expo React Native buyer app (not built yet)
 packages/
   shared/           @bread/shared — types, zod schemas, constants, pure logic
 supabase/
   migrations/       SQL schema and changes
-  functions/        Edge Functions (payment webhook, schedules, SMS)
-  policies/         row-level security policies
+scripts/
+  verify/           checks that only make sense against a real database
 CLAUDE.md           architecture rules and conventions — read this first
+TESTING.md          what is checked, what it found, what is still untested
 ```
 
 This is an npm workspaces monorepo. `packages/shared` holds anything both apps
@@ -79,25 +82,49 @@ git config user.email "your@email.com"
 New to the project? Read [HANDOFF.md](HANDOFF.md) first — it is the full context
 dump. Then [CLAUDE.md](CLAUDE.md) for the working rules.
 
-## Running the admin app
+## Running the apps
 
-You need Node.js 22+ and npm 10+. Nothing else — the prototype has no database.
+You need Node.js 22+ and npm 10+, and a Supabase project. **Both apps read and
+write one shared Supabase database, so they will not start without credentials.**
+That is deliberate: without them the admin app would otherwise render a
+working-looking bakery with no orders and no money in it.
+
+First time, once:
+
+1. Create a Supabase project (free tier is fine).
+2. Run every file in `supabase/migrations/` in the SQL editor, in order.
+3. Copy the environment files and fill in the three values from
+   **Project settings → Data API** and **→ API Keys**:
+
+```bash
+cp apps/storefront/.env.example apps/storefront/.env.local
+cp apps/admin/.env.example apps/admin/.env.local
+```
+
+Both files point at the **same** project — copy the values across rather than
+creating a second one. Full walkthrough in
+[apps/storefront/README.md](apps/storefront/README.md).
+
+Then:
 
 ```bash
 npm install
 npm run dev
+npm run dev:storefront
 ```
 
-Then open **http://localhost:3000**.
+The admin app is on **http://localhost:3000** and the storefront on
+**http://localhost:3001**. Run them in two terminals to see an order placed on
+one appear on the other.
 
-Paste those two lines exactly, with nothing after them. zsh does not treat `#` as
-a comment in interactive shells by default, so a trailing comment becomes an
+Paste those lines exactly, with nothing after them. zsh does not treat `#` as a
+comment in interactive shells by default, so a trailing comment becomes an
 argument and `next dev` fails with "Invalid project directory".
 
-**This is a prototype running on in-memory mock data.** There is no database and
-no login. Data resets when the dev server restarts, and everything in it is
-fabricated. Do not enter real customer information. See
-[DECISIONS.md](DECISIONS.md) entries 0008 and 0009.
+**This is still a prototype.** There is no login on either app, the storefront's
+payment step is mocked rather than real (see
+[apps/storefront/README.md](apps/storefront/README.md)), and the seeded data is
+fabricated. Do not enter real customer information.
 
 What works today: the daily delivery round, customers with balances, order
 history, recording payments against a customer's deliveries, inventory
@@ -114,30 +141,42 @@ npm run typecheck
 npm run lint
 ```
 
-## Not built yet
-
-The mobile app and the database do not exist. Once the schema questions in
-[DECISIONS.md](DECISIONS.md) are answered, this is roughly what setup will
-become — Docker and the [Supabase CLI](https://supabase.com/docs/guides/cli) for
-the database, Android Studio or a device for the mobile app (plus Xcode on a Mac
-once iOS builds start):
+## Testing
 
 ```bash
-cp .env.example .env
-supabase start
-supabase db reset
+npm test
+npm run verify:security
+npm run verify:integrity
+```
+
+`npm test` covers the business logic — money, dates, balances — with no database.
+The `verify:` scripts run against the real Supabase project, because what they
+check (row-level security, function permissions, constraints, transactions) only
+exists in the database. They found a live vulnerability, since fixed; see
+[TESTING.md](TESTING.md) for what is checked, what it found, and what is still
+untested.
+
+## Not built yet
+
+The mobile app does not exist. Once the schema questions in
+[DECISIONS.md](DECISIONS.md) are answered, this is roughly what its setup will
+become — Android Studio or a device, plus Xcode on a Mac once iOS builds start:
+
+```bash
 npm run dev -w apps/mobile
 ```
 
-Copy `.env.example` and fill in your own values, `supabase start` brings up local
-Postgres and Studio, `db reset` applies migrations and seed data, and the last
-line starts the Expo dev server.
+The [Supabase CLI](https://supabase.com/docs/guides/cli) is also not set up yet.
+Migrations are currently applied by pasting them into the SQL editor, which is
+fine for two people and one project but will not stay fine — see
+[TESTING.md](TESTING.md).
 
 ## Environment variables
 
-Copy `.env.example` to `.env` and fill in your own values. **Never commit `.env`.**
-Each teammate keeps their own local copy, and `.env`, `.env.*`, `*.key`, and
-`*.pem` are all gitignored.
+Each app has its own `.env.example`. Copy it to `.env.local` in the same
+directory and fill in your own values. **Never commit a real key.** Each
+teammate keeps their own local copy, and `.env`, `.env.*` (except
+`.env.example`), `*.key`, and `*.pem` are all gitignored.
 
 Variables prefixed `NEXT_PUBLIC_` or `EXPO_PUBLIC_` are shipped to the client and
 are not secret. Everything else is. The Supabase **service role key bypasses
@@ -146,20 +185,24 @@ code, and must never appear in the mobile app or in any client component.
 
 ## Database
 
-The schema lives in `supabase/migrations` and is applied with the Supabase CLI.
-Never change the schema by clicking in the Supabase dashboard, and never edit a
-migration that has already been merged — correct it with a new one.
+The schema lives in `supabase/migrations`, applied in order by pasting each file
+into the Supabase SQL editor. Never change the schema by clicking around in the
+dashboard, and never edit a migration that has already been applied — correct it
+with a new one. Once the Supabase CLI is set up this becomes `supabase db push`
+and `supabase gen types typescript`.
 
-```bash
-supabase migration new add_monthly_commitments
-supabase db reset
-supabase db push
-supabase gen types typescript --local > packages/shared/src/database.types.ts
-```
+Every table holding customer data has row-level security enabled. There is no
+customer login yet, so there is no "their own rows" to scope a policy by: only
+`products` is readable by the public key, and everything else is reachable only
+from server-side code holding the secret key.
 
-Every table that holds customer data has row-level security enabled with explicit
-policies. Customers can read only their own rows; costs, profit, and margins are
-admin-only. A table without policies is an incomplete migration.
+**RLS is not the whole story.** Postgres grants `EXECUTE` on a function to
+`PUBLIC` by default and PostgREST publishes it, and a `security definer`
+function exists precisely to bypass RLS — so a migration that adds a function
+must revoke execute explicitly, exactly as a new table must state who can read
+it. This was a live hole, not a hypothetical one: see decision 0024 in
+[DECISIONS.md](DECISIONS.md) and `npm run verify:security`, which guards against
+its return.
 
 ## Conventions
 

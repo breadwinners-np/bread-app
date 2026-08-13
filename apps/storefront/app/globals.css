@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+/*
+ * Customers order from a phone in daylight as often as a desk. Large touch
+ * targets, a light theme only, and a focus ring that is impossible to miss.
+ */
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  font-size: 18px;
+}
+
+body {
+  background-color: #fffbeb;
+  color: #1c1917;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.55;
+}
+
+:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 2px;
+}
+
+input[type="tel"],
+input[type="text"],
+input[type="number"] {
+  min-height: 3rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

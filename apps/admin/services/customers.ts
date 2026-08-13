@@ -1,15 +1,18 @@
 /**
- * Customer service. Screens call these, never the store directly.
- * Swap the bodies for Supabase queries and the screens stay unchanged.
+ * Customer service. Screens call these, never the database directly.
  */
 
 import {
   customerAccount,
   type Customer,
   type CustomerInput,
+  type Delivery,
+  type Order,
+  type Payment,
 } from "@bread/shared";
 
-import { getStore, newId, simulateLatency } from "./store";
+import { supabase } from "@/lib/supabase";
+import { loadCustomers, loadDeliveries, loadOrders, loadPayments } from "./loaders";
 
 export interface CustomerSummary extends Customer {
   /** Delivered but unpaid. Positive means the customer owes money. */
@@ -22,27 +25,58 @@ export interface CustomerSummary extends Customer {
 }
 
 export async function listCustomers(): Promise<CustomerSummary[]> {
-  const store = getStore();
+  const [customers, orders, deliveries, payments] = await Promise.all([
+    loadCustomers(),
+    loadOrders(),
+    loadDeliveries(),
+    loadPayments(),
+  ]);
 
-  const summaries = store.customers
+  return customers
     .filter((customer) => !customer.archivedAt)
-    .map((customer) => withSummary(customer))
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  return simulateLatency(summaries);
+    .map((customer) => withSummary(customer, orders, deliveries, payments));
 }
 
+/**
+ * Deliberately does not filter archived customers: an archived customer's
+ * history has to stay reachable, which is the whole reason they are archived
+ * rather than deleted.
+ */
 export async function getCustomer(id: string): Promise<CustomerSummary | null> {
-  const store = getStore();
-  const customer = store.customers.find((entry) => entry.id === id);
-  return simulateLatency(customer ? withSummary(customer) : null);
+  const [customers, orders, deliveries, payments] = await Promise.all([
+    loadCustomers(),
+    loadOrders(),
+    loadDeliveries(),
+    loadPayments(),
+  ]);
+
+  const customer = customers.find((entry) => entry.id === id);
+  return customer ? withSummary(customer, orders, deliveries, payments) : null;
 }
 
 export async function createCustomer(input: CustomerInput): Promise<Customer> {
-  const store = getStore();
+  const { data, error } = await supabase
+    .from("customers")
+    .insert({
+      name: input.name,
+      phone: input.phone,
+      type: input.type,
+      area: input.area,
+      notes: input.notes ?? null,
+    })
+    .select("id")
+    .single();
 
-  const customer: Customer = {
-    id: newId("cus"),
+  if (error) {
+    // The one constraint a person can trip from the form.
+    if (error.code === "23505") {
+      throw new Error("A customer with that phone number already exists");
+    }
+    throw new Error(`Could not save the customer: ${error.message}`);
+  }
+
+  return {
+    id: data.id as string,
     name: input.name,
     phone: input.phone,
     type: input.type,
@@ -50,20 +84,20 @@ export async function createCustomer(input: CustomerInput): Promise<Customer> {
     notes: input.notes,
     archivedAt: null,
   };
-
-  store.customers.push(customer);
-  return simulateLatency(customer);
 }
 
-function withSummary(customer: Customer): CustomerSummary {
-  const store = getStore();
-
-  const orders = store.orders.filter((order) => order.customerId === customer.id);
-  const payments = store.payments.filter(
+function withSummary(
+  customer: Customer,
+  allOrders: readonly Order[],
+  deliveries: readonly Delivery[],
+  allPayments: readonly Payment[],
+): CustomerSummary {
+  const orders = allOrders.filter((order) => order.customerId === customer.id);
+  const payments = allPayments.filter(
     (payment) => payment.customerId === customer.id,
   );
 
-  const account = customerAccount(orders, store.deliveries, payments);
+  const account = customerAccount(orders, deliveries, payments);
 
   return {
     ...customer,

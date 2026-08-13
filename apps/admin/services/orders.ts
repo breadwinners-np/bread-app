@@ -9,11 +9,14 @@ import {
   monthOf,
   orderQuantity,
   orderTotalPesewas,
+  type Customer,
   type Order,
   type OrderInput,
+  type Product,
 } from "@bread/shared";
 
-import { getStore, newId, simulateLatency } from "./store";
+import { supabase } from "@/lib/supabase";
+import { loadCustomers, loadOrders, loadProducts } from "./loaders";
 
 export interface OrderWithContext {
   order: Order;
@@ -40,10 +43,10 @@ export interface OrderDaySummary {
 export async function listOrderDaysForMonth(
   month: string,
 ): Promise<Record<string, OrderDaySummary>> {
-  const store = getStore();
+  const orders = await loadOrders();
   const days: Record<string, OrderDaySummary> = {};
 
-  for (const order of store.orders) {
+  for (const order of orders) {
     if (order.status === "cancelled") continue;
     if (monthOf(order.deliveryDate) !== month) continue;
 
@@ -59,88 +62,108 @@ export async function listOrderDaysForMonth(
     day.valuePesewas += orderTotalPesewas(order);
   }
 
-  return simulateLatency(days);
+  return days;
 }
 
 export async function listOrders(): Promise<OrderWithContext[]> {
-  const store = getStore();
+  const [orders, customers, products] = await Promise.all([
+    loadOrders(),
+    loadCustomers(),
+    loadProducts(),
+  ]);
 
-  const orders = [...store.orders]
-    .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))
-    .map(withContext);
-
-  return simulateLatency(orders);
+  return orders.map((order) => withContext(order, customers, products));
 }
 
 export async function listOrdersForDate(date: string): Promise<OrderWithContext[]> {
-  const store = getStore();
+  const [orders, customers, products] = await Promise.all([
+    loadOrders(),
+    loadCustomers(),
+    loadProducts(),
+  ]);
 
-  const orders = store.orders
+  return orders
     .filter((order) => order.deliveryDate === date)
-    .map(withContext);
-
-  return simulateLatency(orders);
+    .map((order) => withContext(order, customers, products));
 }
 
 export async function listOrdersForCustomer(
   customerId: string,
 ): Promise<OrderWithContext[]> {
-  const store = getStore();
+  const [orders, customers, products] = await Promise.all([
+    loadOrders(),
+    loadCustomers(),
+    loadProducts(),
+  ]);
 
-  const orders = store.orders
+  return orders
     .filter((order) => order.customerId === customerId)
-    .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))
-    .map(withContext);
-
-  return simulateLatency(orders);
+    .map((order) => withContext(order, customers, products));
 }
 
-export async function createOrder(input: OrderInput): Promise<Order> {
-  const store = getStore();
+export async function createOrder(input: OrderInput): Promise<string> {
+  const products = await loadProducts();
 
-  const product = store.products.find((entry) => entry.id === input.productId);
+  const product = products.find((entry) => entry.id === input.productId);
   if (!product) {
     throw new Error("That product does not exist");
   }
 
-  const id = newId("ord");
-  const order: Order = {
-    id,
-    customerId: input.customerId,
-    deliveryDate: input.deliveryDate,
-    status: "scheduled",
-    source: "admin",
-    createdAt: new Date().toISOString(),
-    lines: [
+  // One call, so the order, its lines and its delivery all exist or none of
+  // them do. An order without a delivery silently drops off the day's round
+  // while still counting toward what the customer owes.
+  const { data, error } = await supabase.rpc("place_order", {
+    p_customer_id: input.customerId,
+    p_delivery_date: input.deliveryDate,
+    p_source: "admin",
+    p_lines: [
       {
-        id: `${id}-l1`,
-        productId: product.id,
-        quantity: input.quantity,
+        product_id: product.id,
+        product_name: product.name,
         // Price snapshotted at order time (decision 0004) — a later price
         // change must never rewrite what this order was worth.
-        unitPricePesewas: product.pricePesewas,
+        unit_price_pesewas: product.pricePesewas,
+        quantity: input.quantity,
       },
     ],
-  };
-
-  store.orders.push(order);
-  store.deliveries.push({
-    id: newId("dlv"),
-    orderId: order.id,
-    status: "pending",
-    deliveredQuantity: 0,
-    deliveredAt: null,
   });
 
-  return simulateLatency(order);
+  if (error) throw new Error(`Could not save the order: ${error.message}`);
+
+  return data as string;
 }
 
-function withContext(order: Order): OrderWithContext {
-  const store = getStore();
+/**
+ * Cancel an order, keeping the record.
+ *
+ * Nothing in this system is deleted — a cancelled order leaves the day's round
+ * and stops being owed, but stays in history so past totals and the customer's
+ * account still add up. Cancelling is also the only order state a delivery
+ * cannot imply, which is why it is the only one stored.
+ */
+export async function cancelOrder(orderId: string): Promise<void> {
+  const orders = await loadOrders();
 
-  const customer = store.customers.find((entry) => entry.id === order.customerId);
+  const order = orders.find((entry) => entry.id === orderId);
+  if (!order) throw new Error("That order does not exist");
+  if (order.status === "cancelled") return;
+
+  const { error } = await supabase
+    .from("orders")
+    .update({ cancelled_at: new Date().toISOString() })
+    .eq("id", orderId);
+
+  if (error) throw new Error(`Could not cancel the order: ${error.message}`);
+}
+
+function withContext(
+  order: Order,
+  customers: readonly Customer[],
+  products: readonly Product[],
+): OrderWithContext {
+  const customer = customers.find((entry) => entry.id === order.customerId);
   const firstLine = order.lines[0];
-  const product = store.products.find((entry) => entry.id === firstLine?.productId);
+  const product = products.find((entry) => entry.id === firstLine?.productId);
 
   return {
     order,

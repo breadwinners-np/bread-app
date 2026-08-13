@@ -9,11 +9,15 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @bread/admin",
+    "dev:storefront": "npm run dev -w @bread/storefront",
     "build": "npm run build -w @bread/admin",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify:security": "node scripts/verify/security.mjs",
+    "verify:integrity": "node scripts/verify/integrity.mjs",
+    "verify:demo": "node scripts/verify/demo-loop.mjs"
   },
   "overrides": {
     "react": "19.2.4",

@@ -10,13 +10,13 @@ import {
   cedisToPesewas,
   purchaseTotalPesewas,
   purchasesTotalPesewas,
-  type CostCategory,
   type Purchase,
   type PurchaseInput,
   type SupplyItem,
 } from "@bread/shared";
 
-import { getStore, newId, simulateLatency } from "./store";
+import { supabase } from "@/lib/supabase";
+import { loadPurchases, loadSupplyItems } from "./loaders";
 
 export interface PurchaseWithItem {
   purchase: Purchase;
@@ -25,111 +25,66 @@ export interface PurchaseWithItem {
 }
 
 export async function listSupplyItems(): Promise<SupplyItem[]> {
-  const store = getStore();
-  return simulateLatency(
-    store.supplyItems
-      .filter((item) => item.active)
-      .sort((a, b) => a.name.localeCompare(b.name)),
-  );
+  const items = await loadSupplyItems();
+  return items.filter((item) => item.active);
 }
 
 export async function listPurchases(): Promise<PurchaseWithItem[]> {
-  const store = getStore();
+  const [purchases, items] = await Promise.all([loadPurchases(), loadSupplyItems()]);
 
-  const purchases = [...store.purchases]
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .map(withItem)
+  return purchases
+    .map((purchase) => withItem(purchase, items))
     .filter((entry): entry is PurchaseWithItem => entry !== null);
-
-  return simulateLatency(purchases);
 }
 
 export async function listPurchasesForDate(
   date: string,
 ): Promise<PurchaseWithItem[]> {
-  const store = getStore();
+  const [purchases, items] = await Promise.all([loadPurchases(), loadSupplyItems()]);
 
-  const purchases = store.purchases
+  return purchases
     .filter((entry) => entry.date === date)
-    .map(withItem)
+    .map((purchase) => withItem(purchase, items))
     .filter((entry): entry is PurchaseWithItem => entry !== null);
-
-  return simulateLatency(purchases);
 }
 
 export async function totalPurchasesForDate(date: string): Promise<number> {
-  const store = getStore();
-  return purchasesTotalPesewas(
-    store.purchases.filter((entry) => entry.date === date),
-  );
+  const purchases = await loadPurchases();
+  return purchasesTotalPesewas(purchases.filter((entry) => entry.date === date));
 }
 
-/** Spend per cost category over a date range, inclusive. */
-export async function purchaseTotalsByCategory(
-  from: string,
-  to: string,
-): Promise<Record<CostCategory, number>> {
-  const store = getStore();
+export async function createPurchase(input: PurchaseInput): Promise<void> {
+  const items = await loadSupplyItems();
 
-  const totals: Record<CostCategory, number> = {
-    gas: 0,
-    ingredients: 0,
-    transport: 0,
-  };
-
-  for (const entry of store.purchases) {
-    if (entry.date < from || entry.date > to) continue;
-    const item = store.supplyItems.find((supply) => supply.id === entry.itemId);
-    if (!item) continue;
-    totals[item.category] += purchaseTotalPesewas(entry);
-  }
-
-  return simulateLatency(totals);
-}
-
-/**
- * Most recent price paid per unit for an item, so the owner can see when a
- * supplier's price moves. Returns null if the item has never been bought.
- */
-export async function lastUnitPricePesewas(
-  itemId: string,
-): Promise<number | null> {
-  const store = getStore();
-
-  const latest = store.purchases
-    .filter((entry) => entry.itemId === itemId)
-    .sort((a, b) => b.date.localeCompare(a.date))[0];
-
-  return simulateLatency(latest?.unitPricePesewas ?? null);
-}
-
-export async function createPurchase(input: PurchaseInput): Promise<Purchase> {
-  const store = getStore();
-
-  const item = store.supplyItems.find((entry) => entry.id === input.itemId);
+  const item = items.find((entry) => entry.id === input.itemId);
   if (!item) {
     throw new Error("That item does not exist");
   }
 
-  const purchase: Purchase = {
-    id: newId("pur"),
-    itemId: item.id,
+  const { error } = await supabase.from("purchases").insert({
+    item_id: item.id,
     date: input.date,
     quantity: input.quantity,
     unit: input.unit,
-    unitPricePesewas: cedisToPesewas(input.unitPriceCedis),
-    supplier: input.supplier,
-    note: input.note,
-    recordedAt: new Date().toISOString(),
-  };
+    unit_price_pesewas: cedisToPesewas(input.unitPriceCedis),
+    supplier: input.supplier ?? null,
+    note: input.note ?? null,
+    recorded_at: new Date().toISOString(),
+  });
 
-  store.purchases.push(purchase);
-  return simulateLatency(purchase);
+  if (error) throw new Error(`Could not save the purchase: ${error.message}`);
 }
 
-function withItem(purchase: Purchase): PurchaseWithItem | null {
-  const store = getStore();
-  const item = store.supplyItems.find((entry) => entry.id === purchase.itemId);
+/**
+ * Returns null when the supply behind a purchase is missing, which drops the
+ * purchase from the list. Supplies are deactivated rather than deleted, and the
+ * loader does not filter on active, so in practice this cannot happen.
+ */
+function withItem(
+  purchase: Purchase,
+  items: readonly SupplyItem[],
+): PurchaseWithItem | null {
+  const item = items.find((entry) => entry.id === purchase.itemId);
   if (!item) return null;
 
   return {

@@ -1,8 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
-import { formatGhs, type Customer, type Product } from "@bread/shared";
+import {
+  CUSTOMER_TYPE_LABELS,
+  CUSTOMER_TYPE_OPTIONS,
+  formatGhs,
+  type Customer,
+  type Product,
+} from "@bread/shared";
 
 import { createOrderAction, type FormState } from "@/app/actions";
 import { Field, buttonClass, inputClass } from "@/components/ui";
@@ -23,20 +29,74 @@ export function OrderForm({
     INITIAL,
   );
 
+  // A customer who phones in for the first time should not send her to another
+  // screen and lose the order she is halfway through writing down.
+  const [addingCustomer, setAddingCustomer] = useState(customers.length === 0);
+
   return (
     <form action={formAction} className="space-y-6">
       <Field label="Customer">
-        <select name="customerId" className={inputClass} defaultValue="">
-          <option value="" disabled>
-            Choose a customer
-          </option>
-          {customers.map((customer) => (
-            <option key={customer.id} value={customer.id}>
-              {customer.name} — {customer.area}
-            </option>
-          ))}
-        </select>
-        <FieldError message={state.fieldErrors?.customerId} />
+        {addingCustomer ? (
+          <div className="space-y-4 rounded-lg border border-stone-300 bg-stone-50 p-4">
+            <input type="hidden" name="newCustomer" value="yes" />
+
+            <Field label="Their name">
+              <input type="text" name="newCustomerName" className={inputClass} />
+              <FieldError message={state.fieldErrors?.name} />
+            </Field>
+
+            <Field label="Phone number">
+              <input type="tel" name="newCustomerPhone" className={inputClass} />
+              <FieldError message={state.fieldErrors?.phone} />
+            </Field>
+
+            <Field label="Delivery area">
+              <input type="text" name="newCustomerArea" className={inputClass} />
+              <FieldError message={state.fieldErrors?.area} />
+            </Field>
+
+            <Field label="Business or individual">
+              <select name="newCustomerType" className={inputClass} defaultValue="individual">
+                {CUSTOMER_TYPE_OPTIONS.map((type) => (
+                  <option key={type} value={type}>
+                    {CUSTOMER_TYPE_LABELS[type]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            {customers.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setAddingCustomer(false)}
+                className={buttonClass("secondary")}
+              >
+                Choose an existing customer instead
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            <select name="customerId" className={inputClass} defaultValue="">
+              <option value="" disabled>
+                Choose a customer
+              </option>
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name} — {customer.area}
+                </option>
+              ))}
+            </select>
+            <FieldError message={state.fieldErrors?.customerId} />
+            <button
+              type="button"
+              onClick={() => setAddingCustomer(true)}
+              className="mt-3 block text-stone-600 underline"
+            >
+              This is a new customer
+            </button>
+          </>
+        )}
       </Field>
 
       <Field label="Delivery day" hint="Bread is baked and delivered fresh each day.">

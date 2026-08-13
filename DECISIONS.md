@@ -42,13 +42,14 @@ cite them by identifier (`ORD-3`, `PAY-3`, …). If you add a question, give it 
   delivery shows as paid, never the total owed. See 0013.
 - **Pricing (PRD-4).** One price list, or a negotiated price per wholesale
   customer?
-- **The bread list (PRD-5).** Which types does she actually sell, and what does
-  each cost? The prototype's sugar / tea / butter bread is fabricated. See 0010 —
-  a reverted commit claimed the real four are sugar, butter, mixfruit and brown,
-  which is unconfirmed.
+- **~~The bread list (PRD-5)~~ — ANSWERED, see 0020.** The four are butter,
+  brown, sugar and mixfruit. **Prices are still placeholders** and need
+  confirming with her.
 - **Several breads on one order (ORD-12).** Does a single order routinely carry
   more than one type of bread, and does a short drop need to say *which* bread
-  was short? The prototype assumes one type per order. See 0010.
+  was short? Still one type per order — a customer's basket of several breads
+  becomes several orders. See 0010 and 0023. **This is the question to ask her
+  first if the Orders screen looks cluttered during the demo.**
 - **Unsold or refused bread (DST-7).** Does a short or refused drop reduce what
   is owed? Do we track waste as a cost?
 - **Rescheduling (RSC-1).** When a failed delivery is moved to a later day, is it
@@ -89,6 +90,132 @@ Africa/Accra is UTC+0 with no daylight saving, business day is midnight to
 midnight local.
 
 ---
+
+## 0024 — Database functions are closed to the public key by default
+
+**Date:** 2026-08-13 · **Status:** Proposed
+
+`place_order` and `confirm_order_payment` (migration 0002) were reachable by
+anyone holding the **publishable key**, which ships inside every browser that
+loads the storefront. Testing with that key confirmed both were exploitable:
+
+- `confirm_order_payment` marked an unpaid order **paid** and wrote a
+  *confirmed* payment for GHS 700 that never arrived. The owner's screen would
+  have shown it as settled, and she would have baked and delivered against it.
+- `place_order` created orders directly, at any price the caller chose,
+  skipping the server action that resolves real prices from the database.
+
+Two defaults combined to cause it. Postgres grants `EXECUTE` on a new function
+to `PUBLIC`, and PostgREST publishes every function in the `public` schema as
+an RPC endpoint the anon key can reach. Both functions are `security definer`,
+so they ran as their owner — past the row level security that is otherwise the
+only thing protecting these tables.
+
+Migration 0003 revokes execute from `public`, `anon` and `authenticated`,
+grants it to `service_role` alone, and sets default privileges so the next
+function added to this schema starts closed. Nothing legitimate lost access:
+both are only ever called from server-side code holding the secret key.
+
+**The general rule: RLS does not protect a `security definer` function — it
+exists to bypass RLS. For a function, execute permission is the control that
+matters, and it has to be revoked explicitly.** Any future migration adding a
+function must say who may execute it, the same way a new table must say who may
+read it.
+
+## 0023 — A basket of several breads becomes one order per bread
+
+**Date:** 2026-08-09 · **Status:** Proposed
+
+The customer storefront lets someone put butter and brown bread in one basket.
+That basket is written as **two orders for the same day**, not one order with
+two lines.
+
+Commit `7f0e0ad` made an order carry several bread types and was reverted the
+same evening in `d0630ad`, with no reason recorded (see 0010). Rebuilding it
+here would have repeated that, and it would have forced answers to two open
+questions nobody has asked the owner: whether a short drop must say *which*
+bread was short (ORD-12), and whether a shortfall changes what is owed (DST-7).
+`Delivery` still carries a single `deliveredQuantity` with no per-line
+breakdown, so a three-bread order that arrives half-full cannot say what
+arrived — the value would be guessed by filling lines in array order.
+
+One order per bread type sidesteps all of it: every order stays exactly one
+bread, one quantity, one price, and the delivery round reads the way the owner
+already writes it down. The cost is that a basket shows as several rows on her
+Orders screen.
+
+**If the owner says she wants one order per basket, this is the entry to
+supersede — and ORD-12 and DST-7 have to be answered first, not alongside.**
+
+## 0022 — Gateway payments are confirmed on arrival
+
+**Date:** 2026-08-09 · **Status:** Proposed
+
+Decision 0013 says a payment reported from a customer's phone is a *claim* that
+counts for nothing until the owner confirms it. That rule is about money nobody
+can verify — a customer saying they sent cash or posted a cheque.
+
+A card or mobile money payment taken through the payment gateway is not that.
+The gateway is the authority on whether the charge succeeded, and the server
+verifies it independently before the order is marked paid. So those payments are
+written with `confirmedAt` already set, and appear in the owner's balances and
+reports immediately rather than queueing for her approval.
+
+This narrows 0013 rather than replacing it: a customer *claiming* they paid by
+mobile money outside the app is still a claim.
+
+## 0021 — An order's status is derived from its delivery
+
+**Date:** 2026-08-09 · **Status:** Proposed
+
+`orders` does not store a status column. Status is computed from the delivery
+via `orderStatusForDelivery`, which is the function that already decided it.
+Only `cancelled_at` is stored, because cancellation is the one order state no
+delivery outcome implies.
+
+Storing both let them disagree, and made recording a delivery a two-table
+write: a failure between the two would leave a delivery marked done against an
+order still reading as scheduled, silently. Recording a delivery and moving one
+to another day are now single-table writes.
+
+## 0020 — The four breads are butter, brown, sugar and mixfruit
+
+**Date:** 2026-08-09 · **Status:** Proposed · **Answers PRD-5**
+
+The prototype's sugar / tea / butter list was fabricated. The four above came
+from the owner's side and are now the single product list both apps read. "Tea
+bread" is gone.
+
+This is the half of the reverted commit `7f0e0ad` that was worth keeping (see
+0010, which flagged exactly this list as unconfirmed business fact). Prices are
+still placeholders and need confirming with her.
+
+## 0019 — One database for both apps, with the business logic left alone
+
+**Date:** 2026-08-09 · **Status:** Proposed · **Supersedes 0008**
+
+The admin app ran on an in-memory mock store while the storefront wrote to
+Supabase, bridged by a read-only shim that faked a customer id and used an
+order's creation date as its delivery day. Storefront orders could not be
+delivered, paid, cancelled, or attributed to anyone. Every feature had to be
+built twice or landed on one side only.
+
+Both apps now read and write the same tables. A checkout creates or matches a
+real customer by phone number, real orders, a real delivery record and a
+confirmed payment.
+
+**What was deliberately not done:** the aggregation and allocation logic in
+`packages/shared` — `buildReport`, `customerAccount`, `deliveredValuePesewas` —
+was not rewritten as SQL. Those are pure functions over plain arrays, they are
+tested, and the mobile app will need the same answers. The data layer loads the
+tables and hands them over unchanged, memoised per request. That is a deliberate
+trade of scale for correctness: it holds to roughly a thousand orders, well past
+anything this business will see before the schema is revisited, and the loaders
+throw rather than silently truncate if it is ever approached.
+
+The schema was previously blocked on the open questions above. It is unblocked
+only for what the demo needs — the open questions are still open, and nothing
+here answers ORD-3, PAY-3, PAY-6, DST-7 or RSC-1.
 
 ## 0018 — The buyer app targets iOS as well as Android
 

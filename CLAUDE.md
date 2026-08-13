@@ -141,6 +141,14 @@ before installing it.
 RLS enabled and explicit policies. A new table without policies is an incomplete
 migration, not a follow-up task.
 
+**RLS does not protect a database function.** Postgres grants `EXECUTE` to
+`PUBLIC` by default and PostgREST publishes every function in the `public`
+schema as an RPC endpoint the anon key can reach — and a `security definer`
+function exists precisely to bypass RLS. A migration that adds a function must
+revoke execute from `public`, `anon` and `authenticated` and grant it only to
+the roles that need it, exactly as a new table must state who can read it. See
+decision 0024, which was a live hole, not a hypothetical one.
+
 **The rule that matters most:** a customer can read only their own rows. Costs,
 profit, margins, and other customers' data are admin-only. When adding a table,
 state in the migration who can read it and who can write it.

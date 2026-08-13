@@ -29,6 +29,11 @@ import {
   listPaymentsForCustomer,
 } from "@/services/payments";
 
+// A dynamic segment with no generateStaticParams is prerendered at runtime and
+// then cached indefinitely, and nothing revalidates this path. Without this the
+// page freezes on whatever the first visitor saw.
+export const dynamic = "force-dynamic";
+
 export default async function CustomerDetailPage({
   params,
 }: {

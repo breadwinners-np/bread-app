@@ -1,11 +1,11 @@
 import { sumPesewas, type Cost } from "@bread/shared";
 
-import { getStore, simulateLatency } from "./store";
+import { loadCosts } from "./loaders";
 import { totalPurchasesForDate } from "./inventory";
 
 export async function listCostsForDate(date: string): Promise<Cost[]> {
-  const store = getStore();
-  return simulateLatency(store.costs.filter((cost) => cost.date === date));
+  const costs = await loadCosts();
+  return costs.filter((cost) => cost.date === date);
 }
 
 /**

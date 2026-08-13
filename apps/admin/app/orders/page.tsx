@@ -12,6 +12,9 @@ import {
   todayIso,
 } from "@bread/shared";
 
+import { cancelOrderAction } from "@/app/actions";
+import { AutoRefresh } from "@/components/auto-refresh";
+import { ConfirmButton } from "@/components/confirm-button";
 import { MonthCalendar, type CalendarCell } from "@/components/month-calendar";
 import {
   Badge,
@@ -60,6 +63,9 @@ export default async function OrdersPage({
 
   return (
     <>
+      {/* Orders placed online arrive without anyone here doing anything. */}
+      <AutoRefresh />
+
       <PageHeader
         title="Orders"
         subtitle={
@@ -240,23 +246,38 @@ function OrderList({
                 </div>
               )}
 
-              <Badge
-                tone={
-                  entry.order.status === "delivered"
-                    ? "good"
-                    : entry.order.status === "partially_delivered"
-                      ? "warn"
-                      : entry.order.status === "cancelled"
-                        ? "bad"
-                        : "neutral"
-                }
-              >
-                {ORDER_STATUS_LABELS[entry.order.status]}
-              </Badge>
+              <div className="flex items-center gap-2">
+                {entry.order.source === "app" && <Badge tone="info">Online</Badge>}
+                <Badge
+                  tone={
+                    entry.order.status === "delivered"
+                      ? "good"
+                      : entry.order.status === "partially_delivered"
+                        ? "warn"
+                        : entry.order.status === "cancelled"
+                          ? "bad"
+                          : "neutral"
+                  }
+                >
+                  {ORDER_STATUS_LABELS[entry.order.status]}
+                </Badge>
+              </div>
 
               <p className="w-32 text-right font-semibold tabular-nums text-stone-900">
                 {formatGhs(entry.totalPesewas)}
               </p>
+
+              {entry.order.status !== "cancelled" && (
+                <form action={cancelOrderAction}>
+                  <input type="hidden" name="orderId" value={entry.order.id} />
+                  <ConfirmButton
+                    label="Cancel"
+                    question={`Cancel ${entry.customerName}'s order of ${entry.quantity} × ${entry.productName}?`}
+                    confirmLabel="Yes, cancel this order"
+                    confirmVariant="danger"
+                  />
+                </form>
+              )}
             </li>
           );
         })}
