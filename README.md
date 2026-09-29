@@ -49,10 +49,6 @@ need and ships raw TypeScript, so there is no build step to run before using it.
 
 ## Cloning the repository
 
-The repository is private and owned by the `breadwinners-np` organization, so
-you need to be a member before you can clone it. Ask an organization owner for
-an invite if you have not had one.
-
 Install git and the GitHub CLI, then authenticate. On macOS:
 
 ```bash
